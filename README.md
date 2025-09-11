@@ -210,6 +210,34 @@ cd youtu-graphrag && cp .env.example .env
 curl -v http://localhost:8000
 ```
 
+### 💻 Start with Commandline
+
+This approach relies on Conda and the corresponding pip environment, you can install it according to the [official document](https://docs.conda.io/en/latest/).
+
+```bash
+# 1. Clone Youtu-GraphRAG project
+git clone https://github.com/TencentCloudADP/youtu-graphrag
+
+# 2. Create .env according to .env.example
+cd youtu-graphrag && cp .env.example .env
+# Config your LLM api in .env as OpenAI API format
+LLM_MODEL=deepseek-chat
+LLM_BASE_URL=https://api.deepseek.com
+LLM_API_KEY=sk-xxxxxx
+
+# 3. Create the conda environment.
+conda create -n YouTuGraphRAG python=3.10
+conda activate YouTuGraphRAG
+
+# 4. Setup environment
+chmod +x setup_env.sh
+./setup_env.sh
+# You can also use the bash ./setup_env.sh to do the same thing.
+
+# 5. Run the demo
+python main.py --datasets demo
+```
+
 ### 📖 Full Usage Guide
 For advanced config and usage：[**🚀 FullGuide**](FULLGUIDE.md)
 

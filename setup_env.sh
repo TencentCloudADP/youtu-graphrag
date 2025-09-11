@@ -12,6 +12,29 @@ pip install -r requirements.txt
 echo "🧠 Downloading spaCy English model..."
 python -m spacy download en_core_web_lg # If using Chinese mode, the corresponding Chinese database should be used here.
 
+# Download default HuggingFace models
+echo "🧠 Downloading default retriever model..."
+python3 -c "
+from huggingface_hub import snapshot_download
+import os
+
+try:
+    model_path = snapshot_download(
+        repo_id='sentence-transformers/all-MiniLM-L6-v2',
+        ignore_patterns=['*.bin', '*.onnx', '*.ot', '*.h5'],
+        local_files_only=False
+    )
+except:
+    os.environ['HF_ENDPOINT'] = 'hf-mirror.com'
+    model_path = snapshot_download(
+        repo_id='sentence-transformers/all-MiniLM-L6-v2',
+        ignore_patterns=['*.bin', '*.onnx', '*.ot', '*.h5'],
+        local_files_only=False
+    )
+
+print(f'Model has been downloaded to: {model_path}')
+"
+
 # Verify installation
 echo "✅ Verifying installation..."
 python -c "
