@@ -207,34 +207,6 @@ cd Youtu-GraphRAG && touch .env
 curl -v http://localhost:8000
 ```
 
-### 💻 通过命令行启动
-
-本启动方式依赖`conda`以及对应的`pip`环境，建议参照[官方文档](https://docs.conda.io/en/latest/).
-
-```bash
-# 1. 克隆项目
-git clone https://github.com/TencentCloudADP/Youtu-GraphRAG
-
-# 2. 按照.env.example文件格式创建 .env
-cd Youtu-GraphRAG && touch .env
-# 按照如下格式在.env中配置OpenAI API 格式的 LLM API
-LLM_MODEL=deepseek-chat
-LLM_BASE_URL=https://api.deepseek.com
-LLM_API_KEY=sk-xxxxxx
-
-# 3. 创建conda环境
-conda create -n YouTuGraphRAG python=3.10
-conda activate YouTuGraphRAG
-
-# 4. 配置环境
-chmod +x setup_env.sh
-./setup_env.sh
-# 也可以通过一行bash ./setup_env.sh来达到同样效果
-
-# 5. 启动任务进程
-python main.py --datasets demo
-```
-
 ### 📖 完整使用指南
 详细的安装、配置和使用说明请参考：[**🚀 完整指南**](FULLGUIDE.md)
 

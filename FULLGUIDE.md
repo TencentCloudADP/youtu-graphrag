@@ -70,7 +70,7 @@ curl -v http://localhost:8000
 <a id="command-line-usage"></a>
 ## 🛠️ Command Line Usage
 
-### Environment Preparation
+### Environment Preparation with Docker
 ```bash
 # 1. Clone Youtu-GraphRAG project
 git clone https://github.com/TencentCloudADP/youtu-graphrag
@@ -87,6 +87,28 @@ docker build -t youtu_graphrag:v1 .
 
 # 4. Docker run
 docker run -d -p 8000:8000 youtu_graphrag:v1
+```
+
+### Environment Preparation with Conda
+```bash
+# 1. Clone Youtu-GraphRAG project
+git clone https://github.com/TencentCloudADP/youtu-graphrag
+
+# 2. Create .env according to .env.example
+cd youtu-graphrag && cp .env.example .env
+# Config your LLM api in .env as OpenAI API format
+LLM_MODEL=deepseek-chat
+LLM_BASE_URL=https://api.deepseek.com
+LLM_API_KEY=sk-xxxxxx
+
+# 3. Create the conda environment.
+conda create -n YouTuGraphRAG python=3.10
+conda activate YouTuGraphRAG
+
+# 4. Setup environment
+# You can also use the bash ./setup_env.sh to do the same thing.
+chmod +x setup_env.sh
+./setup_env.sh
 ```
 
 ### Basic Usage
