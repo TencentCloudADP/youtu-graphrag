@@ -518,11 +518,12 @@ class KTBuilder:
         for node, node_data in self.graph.nodes(data=True):
             new_graph.add_node(node, **node_data)
 
-        seen_keys = set()
+        seen_triples = set()
         for u, v, key, data in self.graph.edges(keys=True, data=True):
-            if (u, v, key) not in seen_keys:
-                seen_keys.add((u, v, key))
-                new_graph.add_edge(u, v, key=key, **data)
+            relation = data.get('relation') 
+            if (u, v, relation) not in seen_triples:
+                seen_triples.add((u, v, relation))
+                new_graph.add_edge(u, v, **data)
         self.graph = new_graph
 
     def format_output(self) -> List[Dict[str, Any]]:
