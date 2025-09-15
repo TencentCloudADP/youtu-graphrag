@@ -103,7 +103,8 @@ Based on our unified agentic paradigm for Graph Retrieval-Augmented Generation (
 - 🔄 **Backward Compatibility**: Ensures existing code continues to function
 
 ## 📊 Performance Comparisons
-Extensive experiments across six challenging benchmarks, including GraphRAG-Bench, HotpotQA and MuSiQue, demonstrate the robustness of Youtu-GraphRAG, remarkably moving the Pareto frontier with up to <strong>90.71% saving of token costs</strong> and <strong>16.62% higher accuracy</strong> over state-of-the-art baselines. The results indicate our adaptability, allowing seamless domain transfer with minimal intervention on schema.
+
+Extensive experiments across six challenging benchmarks, including GraphRAG-Bench, HotpotQA and MuSiQue, demonstrate the robustness of Youtu-GraphRAG, remarkably moving the Pareto frontier with **33.6% lower token cost** compared to the sota methods and <strong>16.62% higher accuracy</strong> over state-of-the-art baselines. The results indicate our adaptability, allowing seamless domain transfer with minimal intervention on schema.
 
 <div align="center">
 <img src="assets/performance.png" alt="Cost/acc performance" width="90%"/>
