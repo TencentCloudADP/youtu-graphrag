@@ -1324,6 +1324,7 @@
                     <div>
                         <strong>${dataset.name}</strong>
                         <span style="color: rgba(255,255,255,0.6);"> (${dataset.type})</span>
+                        ${dataset.type !== 'demo' ? `<span style="margin-left:8px; font-size:12px; color:${dataset.has_custom_schema ? '#228B22' : 'rgba(255,255,255,0.6)'}; font-weight:600;">Schema: ${dataset.has_custom_schema ? 'custom' : 'default'}</span>` : ''}
                     </div>
                     <div class="dataset-actions">
                         <span class="status-badge status-${dataset.status === 'ready' ? 'ready' : dataset.status === 'constructing' ? 'processing' : 'error'}">
@@ -1338,6 +1339,10 @@
                             ''
                         }
                         ${dataset.type !== 'demo' ? 
+                            `<button class="btn" onclick="triggerSchemaUpload('${dataset.name}')" title="Upload custom schema">📚 Upload Schema</button>` : 
+                            ''
+                        }
+                        ${dataset.type !== 'demo' ? 
                             `<button class="btn btn-danger" onclick="deleteDataset('${dataset.name}')" title="Delete Dataset">🗑️ Delete</button>` : 
                             ''
                         }
@@ -1346,18 +1351,71 @@
             `).join('');
         }
 
+        // Ensure a hidden schema file input exists
+        function ensureSchemaFileInput() {
+            let input = document.getElementById('schemaFileInput');
+            if (!input) {
+                input = document.createElement('input');
+                input.type = 'file';
+                input.id = 'schemaFileInput';
+                input.accept = '.json';
+                input.style.display = 'none';
+                input.dataset.datasetName = '';
+                input.addEventListener('change', async function (e) {
+                    const file = e.target.files && e.target.files[0];
+                    const datasetName = e.target.dataset.datasetName;
+                    if (!file || !datasetName) return;
+                    try {
+                        showMessage(`Uploading schema for "${datasetName}"...`, 'info');
+                        const fd = new FormData();
+                        fd.append('schema_file', file);
+                        await axios.post(`${API_BASE}/api/datasets/${datasetName}/schema`, fd, {
+                            headers: { 'Content-Type': 'multipart/form-data' }
+                        });
+                        showMessage('Schema uploaded successfully!', 'success');
+                        await loadDatasets();
+                    } catch (err) {
+                        console.error('Schema upload failed:', err);
+                        showMessage('Schema upload failed: ' + (err.response?.data?.detail || err.message), 'error');
+                    } finally {
+                        e.target.value = '';
+                        e.target.dataset.datasetName = '';
+                    }
+                });
+                document.body.appendChild(input);
+            }
+            return input;
+        }
+
+        function triggerSchemaUpload(datasetName) {
+            const input = ensureSchemaFileInput();
+            input.dataset.datasetName = datasetName;
+            input.click();
+        }
+
         async function constructGraph(datasetName) {
+            // 前端立即将该数据集状态设为 constructing
+            if (datasets && Array.isArray(datasets)) {
+                for (let ds of datasets) {
+                    if (ds.name === datasetName) {
+                        ds.status = 'constructing';
+                    }
+                }
+                displayDatasets();
+            }
+
             try {
                 showMessage('Starting graph construction...', 'info');
-                
+
                 // 建立WebSocket连接来接收实时进展
-                const ws = new WebSocket(`ws://${window.location.host}/ws/web_client`);
+                const wsProto = window.location.protocol === 'https:' ? 'wss' : 'ws';
+                const ws = new WebSocket(`${wsProto}://${window.location.host}/ws/web_client`);
                 let progressMessages = [];
-                
+
                 ws.onopen = function() {
                     console.log('WebSocket connected for progress updates');
                 };
-                
+
                 ws.onmessage = function(event) {
                     try {
                         const data = JSON.parse(event.data);
@@ -1366,30 +1424,34 @@
                             showMessage(`[Construct ${progressMessages.length}] ${data.message}`, 'info');
                         } else if (data.type === 'complete') {
                             showMessage('Graph construction completed!', 'success');
+                            // refresh datasets immediately to reflect ready status
+                            refreshData();
                             ws.close();
                         } else if (data.type === 'error') {
                             showMessage(`Construction error: ${data.message}`, 'error');
+                            refreshData();
                             ws.close();
                         }
                     } catch (e) {
                         console.log('Progress update:', event.data);
                     }
                 };
-                
+
                 ws.onerror = function(error) {
                     console.log('WebSocket error:', error);
                 };
-                
+
                 ws.onclose = function() {
                     console.log('WebSocket connection closed');
                 };
-                
+
                 // Send construct request
                 const response = await axios.post(`${API_BASE}/api/construct-graph`, {
-                    dataset_name: datasetName,
-                    client_id: 'web_client'
+                    dataset_name: datasetName
+                }, {
+                    params: { client_id: 'web_client' }
                 });
-                
+
                 // If no WebSocket messages, close after timeout
                 setTimeout(() => {
                     if (ws.readyState === WebSocket.OPEN) {
@@ -1399,8 +1461,8 @@
                         }
                     }
                 }, 30000); // 30s timeout
-                
-                refreshData();
+
+                // 不再立即 refreshData，等 WebSocket complete/error 后再刷新
             } catch (error) {
                 console.error('Construction failed:', error);
                 showMessage('Graph construction failed: ' + (error.response?.data?.detail || error.message), 'error');
@@ -1411,18 +1473,29 @@
             if (!confirm(`Are you sure you want to reconstruct the graph for dataset "${datasetName}"? This will delete the existing graph and cache files.`)) {
                 return;
             }
-            
+
+            // 前端立即将该数据集状态设为 reconstructing
+            if (datasets && Array.isArray(datasets)) {
+                for (let ds of datasets) {
+                    if (ds.name === datasetName) {
+                        ds.status = 'reconstructing';
+                    }
+                }
+                displayDatasets();
+            }
+
             try {
                 showMessage('Reconstructing graph...', 'info');
-                
+
                 // Open WebSocket for real-time progress
-                const ws = new WebSocket(`ws://${window.location.host}/ws/web_client`);
+                const wsProto = window.location.protocol === 'https:' ? 'wss' : 'ws';
+                const ws = new WebSocket(`${wsProto}://${window.location.host}/ws/web_client`);
                 let progressMessages = [];
-                
+
                 ws.onopen = function() {
                     console.log('WebSocket connected for reconstruction progress updates');
                 };
-                
+
                 ws.onmessage = function(event) {
                     try {
                         const data = JSON.parse(event.data);
@@ -1431,28 +1504,31 @@
                             showMessage(`[Reconstruct ${progressMessages.length}] ${data.message}`, 'info');
                         } else if (data.type === 'complete') {
                             showMessage('Graph reconstruction completed!', 'success');
+                            // refresh datasets immediately to reflect ready status
+                            refreshData();
                             ws.close();
                         } else if (data.type === 'error') {
                             showMessage(`Reconstruction error: ${data.message}`, 'error');
+                            refreshData();
                             ws.close();
                         }
                     } catch (e) {
                         console.log('Reconstruction progress update:', event.data);
                     }
                 };
-                
+
                 ws.onerror = function(error) {
                     console.log('WebSocket error:', error);
                 };
-                
+
                 ws.onclose = function() {
                     console.log('WebSocket connection closed');
                 };
-                
+
                 const response = await axios.post(`${API_BASE}/api/datasets/${datasetName}/reconstruct`, {}, {
                     params: { client_id: 'web_client' }
                 });
-                
+
                 // If no WebSocket messages, close after timeout
                 setTimeout(() => {
                     if (ws.readyState === WebSocket.OPEN) {
@@ -1462,8 +1538,8 @@
                         }
                     }
                 }, 30000); // 30s timeout
-                
-                refreshData();
+
+                // 不再立即 refreshData，等 WebSocket complete/error 后再刷新
             } catch (error) {
                 console.error('Reconstruction failed:', error);
                 showMessage('Graph reconstruction failed: ' + (error.response?.data?.detail || error.message), 'error');

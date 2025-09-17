@@ -107,6 +107,37 @@ class QuestionResponse(BaseModel):
     reasoning_steps: List[Dict]
     visualization_data: Dict
 
+def ensure_demo_schema_exists() -> str:
+    """Ensure default demo schema exists and return its path."""
+    os.makedirs("schemas", exist_ok=True)
+    schema_path = "schemas/demo.json"
+    if not os.path.exists(schema_path):
+        demo_schema = {
+            "Nodes": [
+                "person", "location", "organization", "event", "object",
+                "concept", "time_period", "creative_work", "biological_entity", "natural_phenomenon"
+            ],
+            "Relations": [
+                "is_a", "part_of", "located_in", "created_by", "used_by", "participates_in",
+                "related_to", "belongs_to", "influences", "precedes", "arrives_in", "comparable_to"
+            ],
+            "Attributes": [
+                "name", "date", "size", "type", "description", "status",
+                "quantity", "value", "position", "duration", "time"
+            ]
+        }
+        with open(schema_path, 'w') as f:
+            json.dump(demo_schema, f, indent=2)
+    return schema_path
+
+def get_schema_path_for_dataset(dataset_name: str) -> str:
+    """Return dataset-specific schema if present; otherwise fallback to demo schema."""
+    if dataset_name and dataset_name != "demo":
+        ds_schema = f"schemas/{dataset_name}.json"
+        if os.path.exists(ds_schema):
+            return ds_schema
+    return ensure_demo_schema_exists()
+
 async def send_progress_update(client_id: str, stage: str, progress: int, message: str):
     """Send progress update via WebSocket"""
     await manager.send_message({
@@ -271,30 +302,8 @@ async def upload_files(files: List[UploadFile] = File(...), client_id: str = "de
 
 async def create_dataset_config():
     """Create dataset configuration"""
-    # Always use demo.json schema for consistency
-    schema_path = "schemas/demo.json"
-    os.makedirs("schemas", exist_ok=True)
-    
-    # Ensure demo.json exists with standard schema
-    if not os.path.exists(schema_path):
-        # Create demo schema if it doesn't exist
-        demo_schema = {
-            "Nodes": [
-                "person", "location", "organization", "event", "object", 
-                "concept", "time_period", "creative_work", "biological_entity", "natural_phenomenon"
-            ],
-            "Relations": [
-                "is_a", "part_of", "located_in", "created_by", "used_by", "participates_in",
-                "related_to", "belongs_to", "influences", "precedes", "arrives_in", "comparable_to"
-            ],
-            "Attributes": [
-                "name", "date", "size", "type", "description", "status",
-                "quantity", "value", "position", "duration", "time"
-            ]
-        }
-        
-        with open(schema_path, 'w') as f:
-            json.dump(demo_schema, f, indent=2)
+    # Ensure default demo schema exists
+    ensure_demo_schema_exists()
 
 @app.post("/api/construct-graph", response_model=GraphConstructionResponse)
 async def construct_graph(request: GraphConstructionRequest, client_id: str = "default"):
@@ -313,8 +322,8 @@ async def construct_graph(request: GraphConstructionRequest, client_id: str = "d
         
         # Get dataset paths
         corpus_path = f"data/uploaded/{dataset_name}/corpus.json" 
-        # Always use demo.json schema for consistency
-        schema_path = "schemas/demo.json"
+        # Choose schema: dataset-specific or default demo
+        schema_path = get_schema_path_for_dataset(dataset_name)
         
         if not os.path.exists(corpus_path):
             # Try demo dataset
@@ -347,28 +356,8 @@ async def construct_graph(request: GraphConstructionRequest, client_id: str = "d
         # Run in executor to avoid blocking
         loop = asyncio.get_event_loop()
         
-        # Progress simulation for different stages
-        stages = [
-            (30, "抽取实体和关系中..."),
-            (50, "社区检测中..."),
-            (70, "构建层次结构中..."),
-            (85, "优化图结构中..."),
-        ]
-        # Start progress updates
-        async def update_progress():
-            for progress, message in stages:
-                await asyncio.sleep(3)  # Simulate work time
-                await send_progress_update(client_id, "construction", progress, message)
-        
-        # Run both graph construction and progress updates
-        progress_task = asyncio.create_task(update_progress())
-        
-        try:
-            knowledge_graph = await loop.run_in_executor(None, build_graph_sync)
-            progress_task.cancel()
-        except Exception as e:
-            progress_task.cancel()
-            raise e
+        # Run graph construction without simulated progress updates
+        knowledge_graph = await loop.run_in_executor(None, build_graph_sync)
         
         await send_progress_update(client_id, "construction", 95, "准备可视化数据...")
         # Load constructed graph for visualization
@@ -376,6 +365,16 @@ async def construct_graph(request: GraphConstructionRequest, client_id: str = "d
         graph_vis_data = await prepare_graph_visualization(graph_path)
         
         await send_progress_update(client_id, "construction", 100, "图构建完成!")
+        # Notify completion via WebSocket
+        try:
+            await manager.send_message({
+                "type": "complete",
+                "stage": "construction",
+                "message": "图构建完成!",
+                "timestamp": datetime.now().isoformat()
+            }, client_id)
+        except Exception as _e:
+            logger.warning(f"Failed to send completion message: {_e}")
         
         return GraphConstructionResponse(
             success=True,
@@ -385,6 +384,15 @@ async def construct_graph(request: GraphConstructionRequest, client_id: str = "d
     
     except Exception as e:
         await send_progress_update(client_id, "construction", 0, f"构建失败: {str(e)}")
+        try:
+            await manager.send_message({
+                "type": "error",
+                "stage": "construction",
+                "message": f"构建失败: {str(e)}",
+                "timestamp": datetime.now().isoformat()
+            }, client_id)
+        except Exception as _e:
+            logger.warning(f"Failed to send error message: {_e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -552,7 +560,7 @@ async def ask_question(request: QuestionRequest, client_id: str = "default"):
         await send_progress_update(client_id, "retrieval", 10, "初始化检索系统 (agent 模式)...")
 
         graph_path = f"output/graphs/{dataset_name}_new.json"
-        schema_path = "schemas/demo.json"
+        schema_path = get_schema_path_for_dataset(dataset_name)
         if not os.path.exists(graph_path):
             graph_path = "output/graphs/demo_new.json"
         if not os.path.exists(graph_path):
@@ -844,10 +852,12 @@ async def get_datasets():
                 if os.path.exists(corpus_path):
                     graph_path = f"output/graphs/{item}_new.json"
                     status = "ready" if os.path.exists(graph_path) else "needs_construction"
+                    has_custom_schema = os.path.exists(f"schemas/{item}.json")
                     datasets.append({
                         "name": item,
                         "type": "uploaded",
-                        "status": status
+                        "status": status,
+                        "has_custom_schema": has_custom_schema
                     })
     
     # Add demo dataset
@@ -858,10 +868,39 @@ async def get_datasets():
         datasets.append({
             "name": "demo",
             "type": "demo", 
-            "status": status
+            "status": status,
+            "has_custom_schema": False
         })
     
     return {"datasets": datasets}
+
+@app.post("/api/datasets/{dataset_name}/schema")
+async def upload_schema(dataset_name: str, schema_file: UploadFile = File(...)):
+    """Upload a custom schema JSON for a dataset."""
+    try:
+        if dataset_name == "demo":
+            raise HTTPException(status_code=400, detail="Cannot upload schema for demo dataset")
+        if not schema_file.filename.lower().endswith('.json'):
+            raise HTTPException(status_code=400, detail="Schema file must be a .json file")
+
+        content = await schema_file.read()
+        try:
+            data = json.loads(content)
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=f"Invalid JSON: {e}")
+        if not isinstance(data, dict):
+            raise HTTPException(status_code=400, detail="Schema JSON must be an object")
+
+        os.makedirs("schemas", exist_ok=True)
+        save_path = f"schemas/{dataset_name}.json"
+        with open(save_path, 'w', encoding='utf-8') as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+
+        return {"success": True, "message": "Schema uploaded successfully", "dataset_name": dataset_name}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to upload schema: {str(e)}")
 
 @app.delete("/api/datasets/{dataset_name}")
 async def delete_dataset(dataset_name: str):
@@ -949,8 +988,8 @@ async def reconstruct_dataset(dataset_name: str, client_id: str = "default"):
         if config is None:
             config = get_config("config/base_config.yaml")
         
-        # Always use demo.json schema for consistency
-        schema_path = "schemas/demo.json"
+        # Choose schema: dataset-specific or default demo
+        schema_path = get_schema_path_for_dataset(dataset_name)
         
         # Initialize KTBuilder
         builder = constructor.KTBuilder(
@@ -969,31 +1008,20 @@ async def reconstruct_dataset(dataset_name: str, client_id: str = "default"):
         # Run in executor to avoid blocking
         loop = asyncio.get_event_loop()
         
-        # Progress simulation for different stages
-        stages = [
-            (65, "重新抽取实体和关系中..."),
-            (80, "重新进行社区检测中..."),
-            (90, "重新构建层次结构中..."),
-            (95, "重新优化图结构中..."),
-        ]
-        
-        # Start progress updates
-        async def update_progress():
-            for progress, message in stages:
-                await asyncio.sleep(2)  # Simulate work time
-                await send_progress_update(client_id, "reconstruction", progress, message)
-        
-        # Run both graph construction and progress updates
-        progress_task = asyncio.create_task(update_progress())
-        
-        try:
-            knowledge_graph = await loop.run_in_executor(None, build_graph_sync)
-            progress_task.cancel()
-        except Exception as e:
-            progress_task.cancel()
-            raise e
+        # Run graph reconstruction without simulated progress updates
+        knowledge_graph = await loop.run_in_executor(None, build_graph_sync)
         
         await send_progress_update(client_id, "reconstruction", 100, "图谱重构完成!")
+        # Notify completion via WebSocket
+        try:
+            await manager.send_message({
+                "type": "complete",
+                "stage": "reconstruction",
+                "message": "图谱重构完成!",
+                "timestamp": datetime.now().isoformat()
+            }, client_id)
+        except Exception as _e:
+            logger.warning(f"Failed to send completion message: {_e}")
         
         return {
             "success": True,
@@ -1003,6 +1031,15 @@ async def reconstruct_dataset(dataset_name: str, client_id: str = "default"):
     
     except Exception as e:
         await send_progress_update(client_id, "reconstruction", 0, f"重构失败: {str(e)}")
+        try:
+            await manager.send_message({
+                "type": "error",
+                "stage": "reconstruction",
+                "message": f"重构失败: {str(e)}",
+                "timestamp": datetime.now().isoformat()
+            }, client_id)
+        except Exception as _e:
+            logger.warning(f"Failed to send error message: {_e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/graph/{dataset_name}")
