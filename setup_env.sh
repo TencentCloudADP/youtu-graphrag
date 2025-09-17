@@ -1,4 +1,7 @@
 #!/bin/bash
+# set aliyun pip mirrors for speedup
+pip config set global.index-url https://mirrors.aliyun.com/pypi/simple
+pip config set install.trusted-host mirrors.aliyun.com
 
 # Upgrade pip
 echo "📦 Upgrading pip..."
