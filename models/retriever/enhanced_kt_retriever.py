@@ -78,7 +78,7 @@ class KTRetriever:
         os.makedirs(cache_dir, exist_ok=True)
         self.debug_mode = True
 
-        self.nlp = spacy.load("en_core_web_lg")
+        self.nlp = spacy.load(config.nlp.spacy_model)
         
         self.faiss_retriever = DualFAISSRetriever(dataset, self.graph, cache_dir=cache_dir, device=self.device)
         

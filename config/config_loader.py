@@ -90,6 +90,11 @@ class EmbeddingsConfig:
     batch_size: int = 32
     max_length: int = 512
 
+@dataclass
+class NLPConfig:
+    """NLP configuration"""
+    spacy_model: str = 'en_core_web_lg' 
+
 
 @dataclass
 class OutputConfig:
@@ -141,6 +146,7 @@ class ConfigManager:
         self.tree_comm: Optional[TreeCommConfig] = None
         self.retrieval: Optional[RetrievalConfig] = None
         self.embeddings: Optional[EmbeddingsConfig] = None
+        self.nlp: Optional[NLPConfig] = None
         self.prompts: Dict[str, Any] = {}
         self.output: Optional[OutputConfig] = None
         self.performance: Optional[PerformanceConfig] = None

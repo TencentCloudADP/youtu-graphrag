@@ -59,6 +59,10 @@ embeddings:
   max_length: 512
   model_name: all-MiniLM-L6-v2
 
+nlp:
+  spacy_model: en_core_web_lg
+
+
 output:
   base_dir: output
   chunks_dir: output/chunks
