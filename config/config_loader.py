@@ -203,6 +203,9 @@ class ConfigManager:
         embeddings_data = self.config_data.get("embeddings", {})
         self.embeddings = EmbeddingsConfig(**embeddings_data)
         
+        nlp = self.config_data.get("nlp", {})
+        self.nlp = NLPConfig(**nlp)
+        
         self.prompts = self.config_data.get("prompts", {})
         
         output_data = self.config_data.get("output", {})
