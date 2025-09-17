@@ -1125,7 +1125,8 @@
         let questionCount = 0;
 
         // API base URL
-        const API_BASE = 'http://localhost:8000';
+        // use window.location.origin to support cloud env deploy.
+        const API_BASE = window.location.origin;
 
         // Initialize the app
         document.addEventListener('DOMContentLoaded', function() {
