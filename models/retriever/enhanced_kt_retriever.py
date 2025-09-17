@@ -80,7 +80,7 @@ class KTRetriever:
 
         self.nlp = spacy.load("en_core_web_lg")
         
-        self.faiss_retriever = DualFAISSRetriever(dataset, self.graph, cache_dir=cache_dir, device=self.device)
+        self.faiss_retriever = DualFAISSRetriever(dataset, self.graph, model_name=config.embeddings.model_name, cache_dir=cache_dir, device=self.device)
         
         self.node_embedding_cache = {}       
         self.triple_embedding_cache = {}     
