@@ -17,6 +17,7 @@ from models.retriever.faiss_filter import DualFAISSRetriever
 from utils import graph_processor
 from utils import call_llm_api
 from utils.logger import logger
+from utils.language_detection import get_fallback_model
 
 try:
     from config import get_config
@@ -77,8 +78,44 @@ class KTRetriever:
         self.mode = mode
         os.makedirs(cache_dir, exist_ok=True)
         self.debug_mode = True
+        # Automatically select spacy model based on dataset name and configuration
+        try:
+            if get_config:
+                from config import get_spacy_model_for_dataset_config
+                model_name = get_spacy_model_for_dataset_config(dataset, config)
+            else:
+                from utils.language_detection import get_spacy_model_for_dataset
+                model_name = get_spacy_model_for_dataset(dataset)
 
-        self.nlp = spacy.load(config.nlp.spacy_model)
+            self.nlp = spacy.load(model_name)
+            logger.info(f"✅ Successfully loaded spacy model '{model_name}' for dataset '{dataset}'")
+
+            # Log language detection info for debugging
+            from utils.language_detection import detect_language_from_dataset_name
+            detected_language = detect_language_from_dataset_name(dataset)
+            logger.info(f"🔍 Detected language for dataset '{dataset}': {detected_language}")
+
+        except OSError as e:
+            logger.error(f"❌ Spacy model '{model_name}' not found for dataset '{dataset}': {e}")
+            logger.info("🔄 Attempting to load fallback model...")
+            from utils.language_detection import get_fallback_model
+            fallback_model = get_fallback_model(dataset)
+            try:
+                self.nlp = spacy.load(fallback_model)
+                logger.info(f"✅ Successfully loaded fallback spacy model '{fallback_model}' for dataset '{dataset}'")
+            except Exception as fallback_e:
+                logger.critical(f"❌ Failed to load fallback model '{fallback_model}': {fallback_e}")
+                raise
+        except Exception as e:
+            logger.error(f"❌ Unexpected error loading spacy model for dataset '{dataset}': {e}")
+            from utils.language_detection import get_fallback_model
+            fallback_model = get_fallback_model(dataset)
+            try:
+                self.nlp = spacy.load(fallback_model)
+                logger.info(f"✅ Successfully loaded fallback spacy model '{fallback_model}' for dataset '{dataset}'")
+            except Exception as fallback_e:
+                logger.critical(f"❌ Failed to load fallback model '{fallback_model}': {fallback_e}")
+                raise
         
         self.faiss_retriever = DualFAISSRetriever(dataset, self.graph, model_name=config.embeddings.model_name, cache_dir=cache_dir, device=self.device)
         
@@ -1679,59 +1716,79 @@ class KTRetriever:
             }
 
     def generate_prompt(self, question: str, context: str) -> str:
-        
+        """
+        Generate prompt based on dataset language and configuration.
+        Uses automatic language detection to select appropriate prompt template.
+        """
+        # Determine prompt type based on dataset language
+        from utils.language_detection import detect_language_from_dataset_name
+
+        language = detect_language_from_dataset_name(self.dataset)
+
         if self.config:
-            if self.dataset == 'novel':
-                return self.config.get_prompt_formatted("retrieval", "novel_chs", question=question, context=context)
-            elif self.dataset == 'novel_eng':
-                return self.config.get_prompt_formatted("retrieval", "novel_eng", question=question, context=context)
+            # Use configuration-based prompts if available
+            if language == 'zh':
+                # Try Chinese-specific prompts first, then fall back to novel_chs
+                try:
+                    return self.config.get_prompt_formatted("retrieval", "chinese", question=question, context=context)
+                except ValueError:
+                    if self.dataset == 'novel':
+                        return self.config.get_prompt_formatted("retrieval", "novel_chs", question=question, context=context)
+                    else:
+                        # Use general Chinese prompt for other Chinese datasets
+                        return self._get_chinese_general_prompt(question, context)
             else:
-                return self.config.get_prompt_formatted("retrieval", "general", question=question, context=context)
+                # Try English-specific prompts first, then fall back to general
+                try:
+                    return self.config.get_prompt_formatted("retrieval", "english", question=question, context=context)
+                except ValueError:
+                    if self.dataset == 'novel_eng':
+                        return self.config.get_prompt_formatted("retrieval", "novel_eng", question=question, context=context)
+                    else:
+                        return self.config.get_prompt_formatted("retrieval", "general", question=question, context=context)
         else:
-            if self.dataset == 'novel':
-                prompt = f"""
-                你是小说知识助手，你的任务是根据提供的小说知识库回答问题。
-                1. 如果知识库中的信息不足以回答问题，请根据你的推理和知识回答。
-                2. 回答要简洁明了。
-                3. 对于事实性问题，提供具体的事实或人物名称。
-                4. 对于时间性问题，提供具体的时间、年份或时间段。
-                问题：{question}
-                相关知识：{context}
-                答案（简洁明了）：
-                """
-            elif self.dataset == 'novel_eng':
-                prompt = f"""
-                You are a novel knowledge assistant. Your task is to answer the question based on the provided novel knowledge context.
-                1. If the knowledge is insufficient, answer the question based on your own knowledge.
-                2. Be precise and concise in your answer.
-                3. For factual questions, provide the specific fact or entity name
-                4. For temporal questions, provide the specific date, year, or time period
-
-                Question: {question}
-
-                Knowledge Context:
-                {context}   
-
-                Answer (be specific and direct):
-                """
+            # Use hardcoded prompts when no config is available
+            if language == 'zh':
+                return self._get_chinese_general_prompt(question, context)
             else:
-                prompt = f"""
-                You are an expert knowledge assistant. Your task is to answer the question based on the provided knowledge context.
+                return self._get_english_general_prompt(question, context)
 
-                1. Use ONLY the information from the provided knowledge context and try your best to answer the question.
-                2. If the knowledge is insufficient, reject to answer the question.
-                3. Be precise and concise in your answer
-                4. For factual questions, provide the specific fact or entity name
-                5. For temporal questions, provide the specific date, year, or time period
+    def _get_chinese_general_prompt(self, question: str, context: str) -> str:
+        """Get Chinese general prompt template."""
+        return f"""
+        你是知识助手，你的任务是根据提供的知识库回答问题。
 
-                Question: {question}
+        1. 如果知识库中的信息不足以回答问题，请拒绝回答问题。
+        2. 回答要简洁明了。
+        3. 对于事实性问题，提供具体的事实或实体名称。
+        4. 对于时间性问题，提供具体的时间、年份或时间段。
 
-                Knowledge Context:
-                {context}
+        问题：{question}
 
-                Answer (be specific and direct):
-                """
-            return prompt
+        知识背景：
+        {context}
+
+        答案（简洁明了）：
+        """
+
+    def _get_english_general_prompt(self, question: str, context: str) -> str:
+        """Get English general prompt template."""
+        return f"""
+        You are an expert knowledge assistant. Your task is to answer the question based on the provided knowledge context.
+
+        1. Use ONLY the information from the provided knowledge context and try your best to answer the question.
+        2. If the knowledge is insufficient, reject to answer the question.
+        3. Be precise and concise in your answer
+        4. For factual questions, provide the specific fact or entity name
+        5. For temporal questions, provide the specific date, year, or time period
+
+        Question: {question}
+
+        Knowledge Context:
+        {context}
+
+        Answer (be specific and direct):
+        """
 
     
     def generate_answer(self, prompt: str) -> str:

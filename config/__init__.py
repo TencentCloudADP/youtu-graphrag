@@ -7,6 +7,7 @@ from .config_loader import (
     ConfigManager,
     get_config,
     reload_config,
+    get_spacy_model_for_dataset_config,
     DatasetConfig,
     TriggersConfig,
     ConstructionConfig,
@@ -16,14 +17,15 @@ from .config_loader import (
     OutputConfig,
     PerformanceConfig,
     EvaluationConfig,
+    LanguageConfig,
 )
 
 __all__ = [
     "ConfigManager",
-    "get_config", 
+    "get_config",
     "reload_config",
-    "APIConfig",
-    "DatasetConfig", 
+    "get_spacy_model_for_dataset_config",
+    "DatasetConfig",
     "TriggersConfig",
     "ConstructionConfig",
     "TreeCommConfig",
@@ -32,4 +34,5 @@ __all__ = [
     "OutputConfig",
     "PerformanceConfig",
     "EvaluationConfig",
+    "LanguageConfig",
 ]
