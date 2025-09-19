@@ -1,14 +1,62 @@
 #!/bin/bash
 
-# Activate Python 3.10 environment
-echo "🔄 Activating Python 3.10 environment..."
-if command -v conda &> /dev/null; then
-    # Initialize conda in the script
-    source "$(conda info --base)/etc/profile.d/conda.sh"
-    conda activate py310
-    echo "✅ Python environment activated: $(python --version)"
-else
-    echo "⚠️ Conda not found. Please ensure Python 3.10 is available."
+# Ensure shell is properly initialized for conda
+echo "🔄 Initializing shell environment for Python 3.10..."
+
+# Initialize shell environment variables for conda
+if [ -f "$HOME/.bashrc" ]; then
+    source "$HOME/.bashrc"
+elif [ -f "$HOME/.zshrc" ]; then
+    source "$HOME/.zshrc"
+fi
+
+# Try to activate Python 3.10 environment
+activate_python_env() {
+    echo "🔄 Activating Python 3.10 environment..."
+    
+    # Try conda activation with multiple approaches
+    if command -v conda &> /dev/null; then
+        # Approach 1: Use conda info --base
+        if BASE=$(conda info --base 2>/dev/null); then
+            source "$BASE/etc/profile.d/conda.sh"
+            conda activate py310 && echo "✅ Python environment activated: $(python --version)" && return 0
+        fi
+        
+        # Approach 2: Try common conda base locations
+        for CONDA_BASE in "$HOME/miniconda3" "$HOME/anaconda3" "/opt/miniconda3" "/opt/anaconda3"; do
+            if [ -f "$CONDA_BASE/etc/profile.d/conda.sh" ]; then
+                source "$CONDA_BASE/etc/profile.d/conda.sh"
+                conda activate py310 && echo "✅ Python environment activated: $(python --version)" && return 0
+            fi
+        done
+        
+        echo "⚠️ Conda found but couldn't activate py310 environment."
+    else
+        echo "⚠️ Conda not found in PATH."
+    fi
+    
+    # Fallback: Check if Python 3.10 is available directly
+    if python3.10 --version &> /dev/null; then
+        PYTHON=python3.10
+        echo "✅ Using Python 3.10 directly: $(python3.10 --version)"
+        return 0
+    elif python --version 2>&1 | grep -q "Python 3.1[0-9]"; then
+        PYTHON=python
+        echo "✅ Python 3.10+ found: $(python --version)"
+        return 0
+    fi
+    
+    echo "❌ Python 3.10 environment not found. Using default Python."
+    PYTHON=python
+    return 1
+}
+
+# Call the activation function
+activate_python_env
+
+# Set alias for Python if we found a specific version
+if [ -n "$PYTHON" ]; then
+    alias python="$PYTHON"
 fi
 
 # Load environment variables from .env file if exists
@@ -45,6 +93,14 @@ echo "📱 Access the application at: http://localhost:$PORT"
 echo "🛑 Press Ctrl+C to stop the server"
 echo "=========================================="
 
-python backend.py
+# Create necessary directories if they don't exist
+mkdir -p data/uploaded output/graphs output/chunks schemas
+
+# Use the correct Python command (either direct Python 3.10 or alias)
+if [ -n "$PYTHON" ]; then
+    $PYTHON backend.py
+else
+    python backend.py
+fi
 
 echo "👋 Youtu-GraphRAG server stopped."
