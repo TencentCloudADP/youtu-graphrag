@@ -12,7 +12,7 @@ transformers==4.51.1
 sentence-transformers==2.3.1
 
 faiss-cpu==1.9.0
-numpy==1.26.0
+numpy==1.25.0
 scipy==1.15.3
 scikit-learn==1.7.1
 networkx==3.4.2
@@ -28,6 +28,7 @@ requests==2.32.5
 
 # Configuration & Utilities
 PyYAML==6.0.2
-pydantic==1.10.13
+pydantic==2.5.0
 nanoid==2.0.0
+dotenv==0.9.9 
 python-dotenv==1.1.1

@@ -10,6 +10,10 @@ import json
 import asyncio
 import glob
 import shutil
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 from typing import List, Dict, Optional
 from datetime import datetime
 
@@ -1122,4 +1126,6 @@ async def startup_event():
     logger.info("🚀 Youtu-GraphRAG Unified Interface initialized")
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    # Get port from environment variables, default to 8001 if not set
+    port = int(os.environ.get("PORT", 8001))
+    uvicorn.run(app, host="0.0.0.0", port=port)

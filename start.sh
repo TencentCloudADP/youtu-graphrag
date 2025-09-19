@@ -1,5 +1,25 @@
 #!/bin/bash
 
+# Activate Python 3.10 environment
+echo "🔄 Activating Python 3.10 environment..."
+if command -v conda &> /dev/null; then
+    # Initialize conda in the script
+    source "$(conda info --base)/etc/profile.d/conda.sh"
+    conda activate py310
+    echo "✅ Python environment activated: $(python --version)"
+else
+    echo "⚠️ Conda not found. Please ensure Python 3.10 is available."
+fi
+
+# Load environment variables from .env file if exists
+source .env 2>/dev/null
+
+# Set default port if not defined in .env
+PORT=${PORT:-8001}
+
+# Disable tokenizers parallelism to avoid warnings
+export TOKENIZERS_PARALLELISM=false
+
 echo "🌟 Starting Youtu-GraphRAG Server..."
 echo "=========================================="
 
@@ -21,7 +41,7 @@ pkill -f backend.py 2>/dev/null || true
 
 # Start the backend server
 echo "🚀 Starting backend server..."
-echo "📱 Access the application at: http://localhost:8000"
+echo "📱 Access the application at: http://localhost:$PORT"
 echo "🛑 Press Ctrl+C to stop the server"
 echo "=========================================="
 
