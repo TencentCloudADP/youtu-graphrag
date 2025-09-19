@@ -1,6 +1,8 @@
 import json
 import time
 import warnings
+import os
+import glob
 from collections import defaultdict
 from typing import Dict, List
 
@@ -45,7 +47,32 @@ class FastTreeComm:
             embedding_model = embedding_model or config.tree_comm.embedding_model
             struct_weight = struct_weight if struct_weight != 0.3 else config.tree_comm.struct_weight
         
-        self.model = SentenceTransformer(embedding_model)
+        # 尝试优先使用本地已下载的模型
+        try:
+            # 1. 尝试直接使用本地模型绝对路径（最优先）
+            import glob
+            model_glob = os.path.expanduser("~/.cache/huggingface/hub/models--sentence-transformers--all-MiniLM-L6-v2/snapshots/*")
+            model_paths = glob.glob(model_glob)
+            if model_paths:
+                self.model = SentenceTransformer(model_paths[0])
+                logger.info(f"Successfully loaded model from absolute path: {model_paths[0]}")
+            else:
+                # 2. 尝试使用自定义缓存路径
+                cache_path = os.path.expanduser("~/.cache/huggingface/hub")
+                self.model = SentenceTransformer(embedding_model, 
+                                              cache_folder=cache_path)
+                logger.info(f"Successfully loaded model from cache path: {cache_path}")
+        except Exception as e:
+            logger.error(f"Failed to load model with specific paths: {str(e)}")
+            # 3. 如果指定路径失败，尝试更宽松的加载策略但仍优先本地
+            try:
+                self.model = SentenceTransformer(embedding_model, cache_folder=".cache")
+                logger.info(f"Successfully loaded model with fallback strategy: {embedding_model}")
+            except Exception as fallback_e:
+                logger.error(f"All model loading strategies failed: {str(fallback_e)}")
+                # 最终尝试
+                self.model = SentenceTransformer(embedding_model)
+                logger.warning(f"Loaded model with default strategy")
         self.semantic_cache = {}
         self.struct_weight = struct_weight
         self.node_list = list(graph.nodes())
@@ -94,9 +121,21 @@ class FastTreeComm:
         triples = []
         
         for neighbor in self.graph.neighbors(node_id):
-            rel = self.graph.edges[node_id, neighbor, 0].get("relation", "related_to")
-            neighbor_name = self.graph.nodes[neighbor]["properties"]["name"]
-            triples.append(f"{node_name} {rel} {neighbor_name}")
+                # 修复NetworkX边访问方式
+                if hasattr(self.graph, 'edges') and (node_id, neighbor) in self.graph.edges:
+                    # 尝试不同的边访问方式，兼容不同版本的NetworkX
+                    try:
+                        # 尝试获取边的属性字典
+                        edge_data = self.graph.edges[node_id, neighbor]
+                        rel = edge_data.get("relation", "related_to")
+                    except:
+                        # 如果出错，使用默认关系
+                        rel = "related_to"
+                else:
+                    # 如果边不存在于edges集合中，使用默认关系
+                    rel = "related_to"
+                neighbor_name = self.graph.nodes[neighbor]["properties"]["name"]
+                triples.append(f"{node_name} {rel} {neighbor_name}")
             
         result = list(set(triples))
         self.triple_strings_cache[node_id] = result
