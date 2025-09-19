@@ -197,6 +197,7 @@ cd Youtu-GraphRAG && touch .env
 # LLM_MODEL=deepseek-chat
 # LLM_BASE_URL=https://api.deepseek.com
 # LLM_API_KEY=sk-xxxxxx
+# PORT=8001 (可选，默认为8001)
 
 # 3. 配置环境 
 ./setup_env.sh
@@ -204,8 +205,91 @@ cd Youtu-GraphRAG && touch .env
 # 4. 启动服务
 ./start.sh
 
-# 5. 访问 http://localhost:8000 体验Youtu-GraphRAG
-curl -v http://localhost:8000
+# 5. 访问 http://localhost:8001（或您在.env中设置的端口）体验Youtu-GraphRAG
+curl -v http://localhost:8001
+```
+
+### 📖 核心功能使用指南
+
+#### 🔄 文件上传与数据集创建
+1. 启动Web服务后，进入**上传文档**标签页
+2. 拖放您的文件（支持.txt、.json、.md格式）
+3. 系统将自动创建一个经过处理的新数据集名称
+4. 等待上传完成
+5. 您将在**知识树可视化**标签页中看到新数据集，状态为`needs_construction`
+
+#### 📊 图构建
+1. 进入**知识树可视化**标签页
+2. 选择您的数据集
+3. 点击**构建图**按钮
+4. 实时查看构建进度
+5. 完成后，数据集状态将变为`ready`
+
+#### 📚 Schema文件创建与上传
+Schema文件定义了知识图谱的结构，包括实体类型、关系类型和属性类型。
+
+1. **Schema文件结构**
+```json
+{
+  "Nodes": [
+    {
+      "entity_type": "person",
+      "description": "人物实体"
+    },
+    {
+      "entity_type": "location",
+      "description": "地点实体"
+    }
+  ],
+  "Relations": [
+    {
+      "relation_type": "located_in",
+      "description": "表示人物所在地点",
+      "directional": true
+    }
+  ],
+  "Attributes": [
+    {
+      "attribute_type": "name",
+      "description": "实体的名称"
+    },
+    {
+      "attribute_type": "date",
+      "description": "日期属性"
+    }
+  ]
+}
+```
+
+2. **上传Schema文件**
+   - 进入**知识树可视化**标签页
+   - 找到您的数据集
+   - 点击**📚 上传Schema**按钮
+   - 选择您的schema JSON文件
+   - 上传成功后，数据集将显示"Schema: custom"
+
+3. **默认Schema**
+   - 如果您不上传自定义schema，系统将使用默认的demo schema
+   - 默认schema支持常见的实体类型、关系和属性
+
+#### 🌐 本地模型下载（使用HF镜像）
+系统可以从Hugging Face镜像下载模型，以提高某些地区的下载速度：
+
+1. `setup_env.sh`脚本自动使用`HF_ENDPOINT=https://hf-mirror.com`下载`all-MiniLM-L6-v2`模型
+2. 模型会缓存在`.cache`目录中，避免重复下载
+3. 离线运行时，系统会优先尝试使用本地缓存的模型
+
+#### ⚙️ .env配置参数
+您可以在`.env`文件中配置以下参数：
+
+```
+# LLM配置
+LLM_MODEL=deepseek-chat           # 使用的LLM模型
+LLM_BASE_URL=https://api.deepseek.com  # LLM API的基础URL
+LLM_API_KEY=sk-xxxxxx             # 您的LLM API密钥
+
+# 服务器配置
+PORT=8001                         # 服务器端口（默认：8001）
 ```
 
 ### 📖 完整使用指南

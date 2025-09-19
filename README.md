@@ -201,6 +201,7 @@ cd youtu-graphrag && cp .env.example .env
 # LLM_MODEL=deepseek-chat
 # LLM_BASE_URL=https://api.deepseek.com
 # LLM_API_KEY=sk-xxxxxx
+# PORT=8001 (Optional, default is 8001)
 
 # 3. Setup environment
 ./setup_env.sh
@@ -208,8 +209,91 @@ cd youtu-graphrag && cp .env.example .env
 # 4. Launch the web
 ./start.sh
 
-# 5. Visit http://localhost:8000
-curl -v http://localhost:8000
+# 5. Visit http://localhost:8001 (or the port you set in .env)
+curl -v http://localhost:8001
+```
+
+### 📖 Key Features Usage Guide
+
+#### 🔄 File Upload and Dataset Creation
+1. After starting the web service, go to the **Upload Documents** tab
+2. Drag and drop your files (supports .txt, .json, .md formats)
+3. The system will automatically create a new dataset with a sanitized name
+4. Wait for the upload to complete
+5. You'll see the new dataset in the **Knowledge Tree Visualization** tab with status `needs_construction`
+
+#### 📊 Graph Construction
+1. Go to the **Knowledge Tree Visualization** tab
+2. Select your dataset
+3. Click the **Construct Graph** button
+4. Watch the real-time construction progress
+5. Once completed, the dataset status will change to `ready`
+
+#### 📚 Schema File Creation and Upload
+A schema file defines the structure of your knowledge graph, including entity types, relation types, and attribute types.
+
+1. **Schema File Structure**
+```json
+{
+  "Nodes": [
+    {
+      "entity_type": "person",
+      "description": "A person entity"
+    },
+    {
+      "entity_type": "location",
+      "description": "A location entity"
+    }
+  ],
+  "Relations": [
+    {
+      "relation_type": "located_in",
+      "description": "Indicates where a person is located",
+      "directional": true
+    }
+  ],
+  "Attributes": [
+    {
+      "attribute_type": "name",
+      "description": "The name of an entity"
+    },
+    {
+      "attribute_type": "date",
+      "description": "A date attribute"
+    }
+  ]
+}
+```
+
+2. **Upload Schema File**
+   - Go to the **Knowledge Tree Visualization** tab
+   - Find your dataset
+   - Click the **📚 Upload Schema** button
+   - Select your schema JSON file
+   - After successful upload, the dataset will show "Schema: custom"
+
+3. **Default Schema**
+   - If you don't upload a custom schema, the system will use the default demo schema
+   - The default schema supports common entity types, relations, and attributes
+
+#### 🌐 Local Model Download (Using HF Mirrors)
+The system can download models from Hugging Face mirrors to improve download speed in certain regions:
+
+1. The `setup_env.sh` script automatically uses `HF_ENDPOINT=https://hf-mirror.com` to download the `all-MiniLM-L6-v2` model
+2. Models are cached in the `.cache` directory to avoid repeated downloads
+3. When running offline, the system will try to use locally cached models first
+
+#### ⚙️ .env Configuration Parameters
+You can configure the following parameters in your `.env` file:
+
+```
+# LLM configuration
+LLM_MODEL=deepseek-chat           # The LLM model to use
+LLM_BASE_URL=https://api.deepseek.com  # The base URL for LLM API
+LLM_API_KEY=sk-xxxxxx             # Your LLM API key
+
+# Server configuration
+PORT=8001                         # Server port (default: 8001)
 ```
 
 ### 📖 Full Usage Guide

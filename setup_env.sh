@@ -4,36 +4,52 @@
 echo "📦 Upgrading pip..."
 pip install --upgrade pip
 
+# Install huggingface_hub separately (required for model download)
+echo "📦 Installing huggingface_hub..."
+pip install huggingface_hub
+
 # Install requirements
 echo "📦 Installing requirements..."
 pip install -r requirements.txt
 
-# Download spaCy model
-echo "🧠 Downloading spaCy English model..."
-python -m spacy download en_core_web_lg # If using Chinese mode, the corresponding Chinese database should be used here.
+# 确保spaCy版本与Python 3.12兼容
+echo "🔄 Upgrading spaCy to Python 3.12 compatible version..."
+pip install --upgrade spacy
 
-# Download default HuggingFace models
-echo "🧠 Downloading default retriever model..."
-python3 -c "
+# Download spaCy Chinese and English models
+echo "🧠 Downloading spaCy Chinese and English models..."
+python -m spacy download zh_core_web_lg # Chinese model for Chinese text processing
+python -m spacy download en_core_web_lg # English model for English text processing
+
+# Download default HuggingFace models using hf-mirror for better download speed
+# 设置环境变量使用hf-mirror优先下载，提高速度和稳定性
+export HF_ENDPOINT=https://hf-mirror.com
+echo "🧠 Downloading default retriever model (using hf-mirror)..."
+
+# 使用单独的Python脚本文件来避免导入问题
+cat > download_model.py << 'EOF'
 from huggingface_hub import snapshot_download
 import os
 
-try:
-    model_path = snapshot_download(
-        repo_id='sentence-transformers/all-MiniLM-L6-v2',
-        ignore_patterns=['*.bin', '*.onnx', '*.ot', '*.h5'],
-        local_files_only=False
-    )
-except:
-    os.environ['HF_ENDPOINT'] = 'hf-mirror.com'
-    model_path = snapshot_download(
-        repo_id='sentence-transformers/all-MiniLM-L6-v2',
-        ignore_patterns=['*.bin', '*.onnx', '*.ot', '*.h5'],
-        local_files_only=False
-    )
+# 确保使用镜像站点
+hf_endpoint = os.environ.get('HF_ENDPOINT', 'hf-mirror.com')
+os.environ['HF_ENDPOINT'] = hf_endpoint
 
-print(f'Model has been downloaded to: {model_path}')
-"
+# 下载模型时不忽略任何必要的文件，确保模型能正常加载
+model_path = snapshot_download(
+    repo_id='sentence-transformers/all-MiniLM-L6-v2',
+    ignore_patterns=['*.bin', '*.onnx', '*.ot', '*.h5'],
+    local_files_only=False
+)
+
+print('Model has been downloaded to: ' + model_path)
+EOF
+
+# 执行下载脚本
+python download_model.py
+
+# 清理临时文件
+rm download_model.py
 
 # Verify installation
 echo "✅ Verifying installation..."
