@@ -3,8 +3,8 @@
 Simple but Complete Youtu-GraphRAG Backend
 Integrates real GraphRAG functionality with a simple interface
 """
-
 import os
+import re
 import sys
 import json
 import asyncio
