@@ -26,6 +26,7 @@ import uvicorn
 
 from utils.logger import logger
 import ast
+import main as graphrag_main
 
 # Try to import GraphRAG components
 try:
@@ -263,14 +264,15 @@ async def upload_files(files: List[UploadFile] = File(...), client_id: str = "de
 
         await send_progress_update(client_id, "upload", 10, "Starting file upload...")
 
-        corpus_data = []
+        # 收集原始文档（包含标题与正文），稍后统一做 chunk 切分后保存到 corpus.json
+        raw_docs: List[Dict[str, str]] = []
         processed_files_count = 0
         for i, file in enumerate(files):
 
             # =================== New Security Check Block ===================
             #
             # Vulnerability Fix 1: Check file size to prevent DoS attacks
-            if file.size > MAX_FILE_SIZE:
+            if hasattr(file, "size") and file.size is not None and file.size > MAX_FILE_SIZE:
                 logger.warning(f"Skipping file '{file.filename}': Exceeds max size of {MAX_FILE_SIZE / 1024 ** 2}MB.")
                 continue
 
@@ -293,7 +295,10 @@ async def upload_files(files: List[UploadFile] = File(...), client_id: str = "de
             try:
                 # Use chunked writing to prevent memory exhaustion
                 with open(file_path, "wb") as buffer:
-                    while content := await file.read(1024 * 1024):  # Read in 1MB chunks
+                    while True:
+                        content = await file.read(1024 * 1024)  # Read in 1MB chunks
+                        if not content:
+                            break
                         buffer.write(content)
             except Exception as e:
                 logger.error(f"Failed to write file '{safe_filename}': {e}")
@@ -304,30 +309,90 @@ async def upload_files(files: List[UploadFile] = File(...), client_id: str = "de
                 if safe_filename.lower().endswith(('.txt', '.md')):
                     with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
                         content = f.read()
-                    corpus_data.append({"title": safe_filename, "text": content})
+                    base_title = os.path.splitext(safe_filename)[0]
+                    raw_docs.append({"title": base_title, "text": content})
 
                 elif safe_filename.lower().endswith('.json'):
+                    def extract_docs(obj, default_title: str):
+                        docs: List[Dict[str, str]] = []
+                        try:
+                            if isinstance(obj, str):
+                                docs.append({"title": default_title, "text": obj})
+                            elif isinstance(obj, dict):
+                                title_val = obj.get("title")
+                                text_val = None
+                                for key in ["text", "content", "body", "article"]:
+                                    val = obj.get(key)
+                                    if isinstance(val, str) and val.strip():
+                                        text_val = val
+                                        break
+                                if text_val is None:
+                                    text_val = json.dumps(obj, ensure_ascii=False)
+                                docs.append({"title": str(title_val) if title_val else default_title, "text": text_val})
+                            elif isinstance(obj, list):
+                                for idx, it in enumerate(obj, start=1):
+                                    docs.extend(extract_docs(it, f"{default_title}_{idx}"))
+                            else:
+                                docs.append({"title": default_title, "text": str(obj)})
+                        except Exception:
+                            pass
+                        return docs
+
                     with open(file_path, 'r', encoding='utf-8') as f:
                         data = json.load(f)
-                        if isinstance(data, list):
-                            corpus_data.extend(data)
-                        else:
-                            corpus_data.append(data)
+                        base_title = os.path.splitext(safe_filename)[0]
+                        raw_docs.extend(extract_docs(data, base_title))
 
                 processed_files_count += 1
 
             except Exception as e:
                 logger.error(f"Failed to process content of file '{safe_filename}': {e}")
-                os.remove(file_path)  # Delete the uploaded file if content processing fails
+                try:
+                    os.remove(file_path)
+                except Exception:
+                    pass
                 continue
 
             progress = 10 + (i + 1) * 80 // len(files)
             await send_progress_update(client_id, "upload", progress, f"Processed {safe_filename}")
 
+        # 将原始文档切分为 chunk 并保存为 corpus.json（保持格式为 [{title, text}]）
         if processed_files_count > 0:
+            def make_chunks(text: str, size: int = 1500, overlap: int = 100) -> List[str]:
+                chunks: List[str] = []
+                if not text:
+                    return chunks
+                text_len = len(text)
+                if text_len <= size:
+                    return [text]
+                stride = max(1, size - overlap)
+                start = 0
+                while start < text_len:
+                    end = min(start + size, text_len)
+                    chunk = text[start:end]
+                    if chunk:
+                        chunks.append(chunk)
+                    if end >= text_len:
+                        break
+                    start += stride
+                return chunks
+
+            chunked_docs: List[Dict[str, str]] = []
+            for doc in raw_docs:
+                title = (doc.get("title") or "").strip() or "untitled"
+                text = (doc.get("text") or "").strip()
+                if not text:
+                    continue
+                chunks = make_chunks(text, size=1500, overlap=100)
+                for idx, ch in enumerate(chunks, start=1):
+                    chunked_docs.append({
+                        "title": f"{title}_chunk_{idx}",
+                        "text": ch
+                    })
+
             corpus_path = f"{upload_dir}/corpus.json"
             with open(corpus_path, 'w', encoding='utf-8') as f:
-                json.dump(corpus_data, f, ensure_ascii=False, indent=2)
+                json.dump(chunked_docs, f, ensure_ascii=False, indent=2)
 
         # This function was renamed in the new version, ensuring compatibility
         ensure_demo_schema_exists()
@@ -630,61 +695,29 @@ async def ask_question(request: QuestionRequest, client_id: str = "default"):
         await send_progress_update(client_id, "retrieval", 40, "构建索引...")
         kt_retriever.build_indices()
 
-        # Helper functions (复用 main.py 逻辑的精简版)
-        def _dedup(items):
-            return list({x: None for x in items}.keys())
-        def _merge_chunk_contents(ids, mapping):
-            return [mapping.get(i, f"[Missing content for chunk {i}]") for i in ids]
+        # Step 1+2: 复用 main.py 的 initial_question_decomposition（问题分解 + 初始检索）
+        await send_progress_update(client_id, "retrieval", 50, "问题分解与初始检索...")
+        graphrag_main.config = config  # 确保 main.py 读取到与后端一致的配置
+        init_result = graphrag_main.initial_question_decomposition(graphq, kt_retriever, question, schema_path)
 
-        # Step 1: decomposition
-        await send_progress_update(client_id, "retrieval", 50, "问题分解...")
-        try:
-            decomposition = graphq.decompose(question, schema_path)
-            sub_questions = decomposition.get("sub_questions", [])
-            involved_types = decomposition.get("involved_types", {})
-        except Exception as e:
-            logger.error(f"Decompose failed: {e}")
-            sub_questions = [{"sub-question": question}]
-            involved_types = {"nodes": [], "relations": [], "attributes": []}
-            decomposition = {"sub_questions": sub_questions, "involved_types": involved_types}
-
+        sub_questions = init_result.get("sub_questions", [])
         reasoning_steps = []
-        all_triples = set()
-        all_chunk_ids = set()
-        all_chunk_contents: Dict[str, str] = {}
+        reasoning_steps.append({
+            "type": "sub_question_summary",
+            "question": question,
+            "triples": init_result.get("triples", [])[:10],
+            "triples_count": len(init_result.get("triples", [])),
+            "chunks_count": len(init_result.get("chunk_ids", [])),
+            "processing_time": init_result.get("total_time", 0),
+            "chunk_contents": init_result.get("chunk_contents", [])[:3]
+        })
 
-        # Step 2: initial retrieval for each sub-question
-        await send_progress_update(client_id, "retrieval", 65, "初始检索...")
-        import time as _time
-        for idx, sq in enumerate(sub_questions):
-            sq_text = sq.get("sub-question", question)
-            start_t = _time.time()
-            retrieval_results, elapsed = kt_retriever.process_retrieval_results(
-                sq_text,
-                top_k=config.retrieval.top_k_filter,
-                involved_types=involved_types
-            )
-            triples = retrieval_results.get('triples', []) or []
-            chunk_ids = retrieval_results.get('chunk_ids', []) or []
-            chunk_contents = retrieval_results.get('chunk_contents', []) or []
-            if isinstance(chunk_contents, dict):
-                for cid, ctext in chunk_contents.items():
-                    all_chunk_contents[cid] = ctext
-            else:
-                for i_c, cid in enumerate(chunk_ids):
-                    if i_c < len(chunk_contents):
-                        all_chunk_contents[cid] = chunk_contents[i_c]
-            all_triples.update(triples)
-            all_chunk_ids.update(chunk_ids)
-            reasoning_steps.append({
-                "type": "sub_question",
-                "question": sq_text,
-                "triples": triples[:10],
-                "triples_count": len(triples),
-                "chunks_count": len(chunk_ids),
-                "processing_time": elapsed,
-                "chunk_contents": list(all_chunk_contents.values())[:3]
-            })
+        # 汇总初始检索结果，供 IRCoT 使用
+        all_triples = set(init_result.get("triples", []) or [])
+        all_chunk_ids = set(init_result.get("chunk_ids", []) or [])
+        all_chunk_contents: Dict[str, str] = {}
+        for cid, ctext in zip(init_result.get("chunk_ids", []), init_result.get("chunk_contents", [])):
+            all_chunk_contents[cid] = ctext
 
         # Step 3: IRCoT iterative refinement
         await send_progress_update(client_id, "retrieval", 75, "迭代推理...")
@@ -693,9 +726,9 @@ async def ask_question(request: QuestionRequest, client_id: str = "default"):
         thoughts = []
 
         # Initial answer attempt
-        initial_triples = _dedup(list(all_triples))
+        initial_triples = graphrag_main.deduplicate_triples(list(all_triples))
         initial_chunk_ids = list(set(all_chunk_ids))
-        initial_chunk_contents = _merge_chunk_contents(initial_chunk_ids, all_chunk_contents)
+        initial_chunk_contents = graphrag_main.merge_chunk_contents(initial_chunk_ids, all_chunk_contents)
         context_initial = "=== Triples ===\n" + "\n".join(initial_triples[:20]) + "\n=== Chunks ===\n" + "\n".join(initial_chunk_contents[:10])
         init_prompt = kt_retriever.generate_prompt(question, context_initial)
         try:
@@ -705,11 +738,10 @@ async def ask_question(request: QuestionRequest, client_id: str = "default"):
         thoughts.append(f"Initial: {initial_answer[:200]}")
         final_answer = initial_answer
 
-        import re as _re
         for step in range(1, max_steps + 1):
-            loop_triples = _dedup(list(all_triples))
+            loop_triples = graphrag_main.deduplicate_triples(list(all_triples))
             loop_chunk_ids = list(set(all_chunk_ids))
-            loop_chunk_contents = _merge_chunk_contents(loop_chunk_ids, all_chunk_contents)
+            loop_chunk_contents = graphrag_main.merge_chunk_contents(loop_chunk_ids, all_chunk_contents)
             loop_ctx = "=== Triples ===\n" + "\n".join(loop_triples[:20]) + "\n=== Chunks ===\n" + "\n".join(loop_chunk_contents[:10])
             loop_prompt = f"""
 You are an expert knowledge assistant using iterative retrieval with chain-of-thought reasoning.
@@ -738,7 +770,7 @@ Your reasoning:
                 "thought": reasoning[:300]
             })
             if "So the answer is:" in reasoning:
-                m = _re.search(r"So the answer is:\s*(.*)", reasoning, flags=_re.IGNORECASE | _re.DOTALL)
+                m = re.search(r"So the answer is:\s*(.*)", reasoning, flags=re.IGNORECASE | re.DOTALL)
                 final_answer = m.group(1).strip() if m else reasoning
                 break
             if "The new query is:" not in reasoning:
@@ -769,9 +801,9 @@ Your reasoning:
                 break
 
         # Final aggregation
-        final_triples = _dedup(list(all_triples))[:20]
+        final_triples = graphrag_main.deduplicate_triples(list(all_triples))[:20]
         final_chunk_ids = list(set(all_chunk_ids))
-        final_chunk_contents = _merge_chunk_contents(final_chunk_ids, all_chunk_contents)[:10]
+        final_chunk_contents = graphrag_main.merge_chunk_contents(final_chunk_ids, all_chunk_contents)[:10]
 
         await send_progress_update(client_id, "retrieval", 100, "答案生成完成!")
 
