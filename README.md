@@ -2,7 +2,7 @@
 
 # <img src="assets/logo.svg" alt="Youtu-agent Logo" height="26px"> Youtu-GraphRAG: <br>Vertically Unified Agents for Graph Retrieval-Augmented Complex Reasoning
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Paper](https://img.shields.io/badge/Paper-Latest-blue.svg)](https://arxiv.org/abs/2508.19855)
 [![WeChat Community](https://img.shields.io/badge/Community-WeChat-32CD32)](assets/wechat_qr.png)
 [![Discord Community](https://img.shields.io/badge/Community-Discord-8A2BE2)](https://discord.gg/QjqhkHQVVM)
@@ -37,10 +37,7 @@ A sketched overview of our proposed framework Youtu-GraphRAG.
 ## 📲 Interactive interface
 
 <div align="center">
-
-[//]: # (<img src="assets/dashboard_demo.png" alt="Dashboard" width="32%"/>)
-<img src="assets/graph_demo.png" alt="Graph Construction" width="45.9%"/>
-<img src="assets/retrieval_demo.png" alt="Retrieval" width="49.4%"/>
+<iframe width="400" height="300" src="https://youtu.be/fVUsgClHqwc" frameborder="0" allowfullscreen></iframe>
 </div>
 
 <a id="contributions"></a>

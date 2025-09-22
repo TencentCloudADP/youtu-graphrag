@@ -2,7 +2,7 @@
 
 #  <img src="assets/logo.svg" alt="Youtu-agent Logo" height="26px"> Youtu-GraphRAG：垂直统一的图增强复杂推理新范式
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Documentation](https://img.shields.io/badge/Paper-Latest-blue.svg)](Youtu-GraphRAG.pdf)
 [![WeChat Community](https://img.shields.io/badge/Community-WeChat-32CD32)](assets/wechat_qr.png)
 [![Discord](https://img.shields.io/badge/Community-Discord-8A2BE2)](https://discord.gg/QjqhkHQVVM)
@@ -35,8 +35,7 @@ Youtu-GraphRAG框架概览
 ## 📲 交互式体验界面
 
 <div align="center">
-<img src="assets/graph_demo.png" alt="Graph Construction" width="45.9%"/>
-<img src="assets/retrieval_demo.png" alt="Retrieval" width="49.4%"/>
+<iframe width="400" height="300" src="https://youtu.be/fVUsgClHqwc" frameborder="0" allowfullscreen></iframe>
 </div>
 
 
