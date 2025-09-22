@@ -18,6 +18,13 @@ from config import get_config, ConfigManager
 from utils.logger import logger
 
 
+def tuples_to_string(rows, sep=", ", line_sep="\n", wrap_brackets=True):
+    def fmt(t):
+        inner = sep.join(map(str, t))
+        return f"[{inner}]" if wrap_brackets else inner
+    return line_sep.join(fmt(t) for t in rows)
+
+
 def rerank_chunks_by_keywords(chunks: List[str], question: str, top_k: int) -> List[str]:
     """
     Rerank chunks by keyword matching with the question
@@ -43,7 +50,7 @@ def rerank_chunks_by_keywords(chunks: List[str], question: str, top_k: int) -> L
     
     scored_chunks.sort(key=lambda x: x[1], reverse=True)
     
-    return [chunk for chunk in scored_chunks[:top_k]]
+    return [scored_chunk[0] for scored_chunk in scored_chunks[:top_k]]
 
 
 def deduplicate_triples(triples: List[str]) -> List[str]:
@@ -305,10 +312,10 @@ def initial_question_decomposition(graphq, kt_retriever, question, schema_path):
 
         scored_triples.sort(key=lambda x: x[1], reverse=True)
         dedup_triples = [triple for triple, score in scored_triples[:config.retrieval.top_k_filter]]
-    
+
     if len(dedup_chunk_contents) > config.retrieval.top_k_filter:
         dedup_chunk_contents = rerank_chunks_by_keywords(dedup_chunk_contents, question, config.retrieval.top_k_filter)
-    
+
     context = "=== Triples ===\n" + "\n".join(dedup_triples)
     context += "\n=== Chunks ===\n" + "\n".join(dedup_chunk_contents)
 

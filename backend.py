@@ -26,6 +26,7 @@ import uvicorn
 
 from utils.logger import logger
 import ast
+import main as graphrag_main
 
 # Try to import GraphRAG components
 try:
@@ -263,14 +264,15 @@ async def upload_files(files: List[UploadFile] = File(...), client_id: str = "de
 
         await send_progress_update(client_id, "upload", 10, "Starting file upload...")
 
-        corpus_data = []
+    # Collect raw documents (with title and body); later we will chunk them and save to corpus.json
+        raw_docs: List[Dict[str, str]] = []
         processed_files_count = 0
         for i, file in enumerate(files):
 
             # =================== New Security Check Block ===================
             #
             # Vulnerability Fix 1: Check file size to prevent DoS attacks
-            if file.size > MAX_FILE_SIZE:
+            if hasattr(file, "size") and file.size is not None and file.size > MAX_FILE_SIZE:
                 logger.warning(f"Skipping file '{file.filename}': Exceeds max size of {MAX_FILE_SIZE / 1024 ** 2}MB.")
                 continue
 
@@ -293,7 +295,10 @@ async def upload_files(files: List[UploadFile] = File(...), client_id: str = "de
             try:
                 # Use chunked writing to prevent memory exhaustion
                 with open(file_path, "wb") as buffer:
-                    while content := await file.read(1024 * 1024):  # Read in 1MB chunks
+                    while True:
+                        content = await file.read(1024 * 1024)  # Read in 1MB chunks
+                        if not content:
+                            break
                         buffer.write(content)
             except Exception as e:
                 logger.error(f"Failed to write file '{safe_filename}': {e}")
@@ -304,30 +309,90 @@ async def upload_files(files: List[UploadFile] = File(...), client_id: str = "de
                 if safe_filename.lower().endswith(('.txt', '.md')):
                     with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
                         content = f.read()
-                    corpus_data.append({"title": safe_filename, "text": content})
+                    base_title = os.path.splitext(safe_filename)[0]
+                    raw_docs.append({"title": base_title, "text": content})
 
                 elif safe_filename.lower().endswith('.json'):
+                    def extract_docs(obj, default_title: str):
+                        docs: List[Dict[str, str]] = []
+                        try:
+                            if isinstance(obj, str):
+                                docs.append({"title": default_title, "text": obj})
+                            elif isinstance(obj, dict):
+                                title_val = obj.get("title")
+                                text_val = None
+                                for key in ["text", "content", "body", "article"]:
+                                    val = obj.get(key)
+                                    if isinstance(val, str) and val.strip():
+                                        text_val = val
+                                        break
+                                if text_val is None:
+                                    text_val = json.dumps(obj, ensure_ascii=False)
+                                docs.append({"title": str(title_val) if title_val else default_title, "text": text_val})
+                            elif isinstance(obj, list):
+                                for idx, it in enumerate(obj, start=1):
+                                    docs.extend(extract_docs(it, f"{default_title}_{idx}"))
+                            else:
+                                docs.append({"title": default_title, "text": str(obj)})
+                        except Exception:
+                            pass
+                        return docs
+
                     with open(file_path, 'r', encoding='utf-8') as f:
                         data = json.load(f)
-                        if isinstance(data, list):
-                            corpus_data.extend(data)
-                        else:
-                            corpus_data.append(data)
+                        base_title = os.path.splitext(safe_filename)[0]
+                        raw_docs.extend(extract_docs(data, base_title))
 
                 processed_files_count += 1
 
             except Exception as e:
                 logger.error(f"Failed to process content of file '{safe_filename}': {e}")
-                os.remove(file_path)  # Delete the uploaded file if content processing fails
+                try:
+                    os.remove(file_path)
+                except Exception:
+                    pass
                 continue
 
             progress = 10 + (i + 1) * 80 // len(files)
             await send_progress_update(client_id, "upload", progress, f"Processed {safe_filename}")
 
+        # Split raw documents into chunks and save to corpus.json (keep format as [{title, text}])
         if processed_files_count > 0:
+            def make_chunks(text: str, size: int = 1500, overlap: int = 100) -> List[str]:
+                chunks: List[str] = []
+                if not text:
+                    return chunks
+                text_len = len(text)
+                if text_len <= size:
+                    return [text]
+                stride = max(1, size - overlap)
+                start = 0
+                while start < text_len:
+                    end = min(start + size, text_len)
+                    chunk = text[start:end]
+                    if chunk:
+                        chunks.append(chunk)
+                    if end >= text_len:
+                        break
+                    start += stride
+                return chunks
+
+            chunked_docs: List[Dict[str, str]] = []
+            for doc in raw_docs:
+                title = (doc.get("title") or "").strip() or "untitled"
+                text = (doc.get("text") or "").strip()
+                if not text:
+                    continue
+                chunks = make_chunks(text, size=1500, overlap=100)
+                for idx, ch in enumerate(chunks, start=1):
+                    chunked_docs.append({
+                        "title": f"{title}_chunk_{idx}",
+                        "text": ch
+                    })
+
             corpus_path = f"{upload_dir}/corpus.json"
             with open(corpus_path, 'w', encoding='utf-8') as f:
-                json.dump(corpus_data, f, ensure_ascii=False, indent=2)
+                json.dump(chunked_docs, f, ensure_ascii=False, indent=2)
 
         # This function was renamed in the new version, ensuring compatibility
         ensure_demo_schema_exists()
@@ -357,13 +422,12 @@ async def construct_graph(request: GraphConstructionRequest, client_id: str = "d
         if not GRAPHRAG_AVAILABLE:
             raise HTTPException(status_code=503, detail="GraphRAG components not available. Please install or configure them.")
         dataset_name = request.dataset_name
-
-        await send_progress_update(client_id, "construction", 2, "清理旧缓存文件...")
+        await send_progress_update(client_id, "construction", 2, "Cleaning old cache files...")
 
         # Clear all cache files before construction
         await clear_cache_files(dataset_name)
 
-        await send_progress_update(client_id, "construction", 5, "初始化图构建器...")
+        await send_progress_update(client_id, "construction", 5, "Initializing graph builder...")
 
         # Get dataset paths
         corpus_path = f"data/uploaded/{dataset_name}/corpus.json"
@@ -377,7 +441,7 @@ async def construct_graph(request: GraphConstructionRequest, client_id: str = "d
         if not os.path.exists(corpus_path):
             raise HTTPException(status_code=404, detail="Dataset not found")
 
-        await send_progress_update(client_id, "construction", 10, "加载配置和语料库...")
+        await send_progress_update(client_id, "construction", 10, "Loading configuration and corpus...")
 
         # Initialize config
         global config
@@ -392,7 +456,7 @@ async def construct_graph(request: GraphConstructionRequest, client_id: str = "d
             config=config
         )
 
-        await send_progress_update(client_id, "construction", 20, "开始实体关系抽取...")
+        await send_progress_update(client_id, "construction", 20, "Starting entity-relation extraction...")
 
         # Build knowledge graph
         def build_graph_sync():
@@ -404,18 +468,18 @@ async def construct_graph(request: GraphConstructionRequest, client_id: str = "d
         # Run graph construction without simulated progress updates
         knowledge_graph = await loop.run_in_executor(None, build_graph_sync)
 
-        await send_progress_update(client_id, "construction", 95, "准备可视化数据...")
+        await send_progress_update(client_id, "construction", 95, "Preparing visualization data...")
         # Load constructed graph for visualization
         graph_path = f"output/graphs/{dataset_name}_new.json"
         graph_vis_data = await prepare_graph_visualization(graph_path)
 
-        await send_progress_update(client_id, "construction", 100, "图构建完成!")
+        await send_progress_update(client_id, "construction", 100, "Graph construction completed!")
         # Notify completion via WebSocket
         try:
             await manager.send_message({
                 "type": "complete",
                 "stage": "construction",
-                "message": "图构建完成!",
+                "message": "Graph construction completed!",
                 "timestamp": datetime.now().isoformat()
             }, client_id)
         except Exception as _e:
@@ -428,12 +492,12 @@ async def construct_graph(request: GraphConstructionRequest, client_id: str = "d
         )
 
     except Exception as e:
-        await send_progress_update(client_id, "construction", 0, f"构建失败: {str(e)}")
+        await send_progress_update(client_id, "construction", 0, f"Construction failed: {str(e)}")
         try:
             await manager.send_message({
                 "type": "error",
                 "stage": "construction",
-                "message": f"构建失败: {str(e)}",
+                "message": f"Construction failed: {str(e)}",
                 "timestamp": datetime.now().isoformat()
             }, client_id)
         except Exception as _e:
@@ -602,7 +666,7 @@ async def ask_question(request: QuestionRequest, client_id: str = "default"):
         dataset_name = request.dataset_name
         question = request.question
 
-        await send_progress_update(client_id, "retrieval", 10, "初始化检索系统 (agent 模式)...")
+        await send_progress_update(client_id, "retrieval", 10, "Initializing retrieval system (agent mode)...")
 
         graph_path = f"output/graphs/{dataset_name}_new.json"
         schema_path = get_schema_path_for_dataset(dataset_name)
@@ -623,79 +687,47 @@ async def ask_question(request: QuestionRequest, client_id: str = "default"):
             recall_paths=config.retrieval.recall_paths,
             schema_path=schema_path,
             top_k=config.retrieval.top_k_filter,
-            mode="agent",  # 强制 agent 模式
+            mode="agent",  # force agent mode
             config=config
         )
 
-        await send_progress_update(client_id, "retrieval", 40, "构建索引...")
+        await send_progress_update(client_id, "retrieval", 40, "Building indices...")
         kt_retriever.build_indices()
 
-        # Helper functions (复用 main.py 逻辑的精简版)
-        def _dedup(items):
-            return list({x: None for x in items}.keys())
-        def _merge_chunk_contents(ids, mapping):
-            return [mapping.get(i, f"[Missing content for chunk {i}]") for i in ids]
+        # Step 1+2: Reuse main.py's initial_question_decomposition (decomposition + initial retrieval)
+        await send_progress_update(client_id, "retrieval", 50, "Question decomposition and initial retrieval...")
+        graphrag_main.config = config  # ensure main.py uses the same config as backend
+        init_result = graphrag_main.initial_question_decomposition(graphq, kt_retriever, question, schema_path)
 
-        # Step 1: decomposition
-        await send_progress_update(client_id, "retrieval", 50, "问题分解...")
-        try:
-            decomposition = graphq.decompose(question, schema_path)
-            sub_questions = decomposition.get("sub_questions", [])
-            involved_types = decomposition.get("involved_types", {})
-        except Exception as e:
-            logger.error(f"Decompose failed: {e}")
-            sub_questions = [{"sub-question": question}]
-            involved_types = {"nodes": [], "relations": [], "attributes": []}
-            decomposition = {"sub_questions": sub_questions, "involved_types": involved_types}
-
+        sub_questions = init_result.get("sub_questions", [])
         reasoning_steps = []
-        all_triples = set()
-        all_chunk_ids = set()
-        all_chunk_contents: Dict[str, str] = {}
+        reasoning_steps.append({
+            "type": "sub_question_summary",
+            "question": question,
+            "triples": init_result.get("triples", [])[:10],
+            "triples_count": len(init_result.get("triples", [])),
+            "chunks_count": len(init_result.get("chunk_ids", [])),
+            "processing_time": init_result.get("total_time", 0),
+            "chunk_contents": init_result.get("chunk_contents", [])[:3]
+        })
 
-        # Step 2: initial retrieval for each sub-question
-        await send_progress_update(client_id, "retrieval", 65, "初始检索...")
-        import time as _time
-        for idx, sq in enumerate(sub_questions):
-            sq_text = sq.get("sub-question", question)
-            start_t = _time.time()
-            retrieval_results, elapsed = kt_retriever.process_retrieval_results(
-                sq_text,
-                top_k=config.retrieval.top_k_filter,
-                involved_types=involved_types
-            )
-            triples = retrieval_results.get('triples', []) or []
-            chunk_ids = retrieval_results.get('chunk_ids', []) or []
-            chunk_contents = retrieval_results.get('chunk_contents', []) or []
-            if isinstance(chunk_contents, dict):
-                for cid, ctext in chunk_contents.items():
-                    all_chunk_contents[cid] = ctext
-            else:
-                for i_c, cid in enumerate(chunk_ids):
-                    if i_c < len(chunk_contents):
-                        all_chunk_contents[cid] = chunk_contents[i_c]
-            all_triples.update(triples)
-            all_chunk_ids.update(chunk_ids)
-            reasoning_steps.append({
-                "type": "sub_question",
-                "question": sq_text,
-                "triples": triples[:10],
-                "triples_count": len(triples),
-                "chunks_count": len(chunk_ids),
-                "processing_time": elapsed,
-                "chunk_contents": list(all_chunk_contents.values())[:3]
-            })
+        # Aggregate initial retrieval results for IRCoT
+        all_triples = set(init_result.get("triples", []) or [])
+        all_chunk_ids = set(init_result.get("chunk_ids", []) or [])
+        all_chunk_contents: Dict[str, str] = {}
+        for cid, ctext in zip(init_result.get("chunk_ids", []), init_result.get("chunk_contents", [])):
+            all_chunk_contents[cid] = ctext
 
         # Step 3: IRCoT iterative refinement
-        await send_progress_update(client_id, "retrieval", 75, "迭代推理...")
+        await send_progress_update(client_id, "retrieval", 75, "Iterative reasoning...")
         max_steps = getattr(getattr(config.retrieval, 'agent', object()), 'max_steps', 3)
         current_query = question
         thoughts = []
 
         # Initial answer attempt
-        initial_triples = _dedup(list(all_triples))
+        initial_triples = graphrag_main.deduplicate_triples(list(all_triples))
         initial_chunk_ids = list(set(all_chunk_ids))
-        initial_chunk_contents = _merge_chunk_contents(initial_chunk_ids, all_chunk_contents)
+        initial_chunk_contents = graphrag_main.merge_chunk_contents(initial_chunk_ids, all_chunk_contents)
         context_initial = "=== Triples ===\n" + "\n".join(initial_triples[:20]) + "\n=== Chunks ===\n" + "\n".join(initial_chunk_contents[:10])
         init_prompt = kt_retriever.generate_prompt(question, context_initial)
         try:
@@ -705,11 +737,10 @@ async def ask_question(request: QuestionRequest, client_id: str = "default"):
         thoughts.append(f"Initial: {initial_answer[:200]}")
         final_answer = initial_answer
 
-        import re as _re
         for step in range(1, max_steps + 1):
-            loop_triples = _dedup(list(all_triples))
+            loop_triples = graphrag_main.deduplicate_triples(list(all_triples))
             loop_chunk_ids = list(set(all_chunk_ids))
-            loop_chunk_contents = _merge_chunk_contents(loop_chunk_ids, all_chunk_contents)
+            loop_chunk_contents = graphrag_main.merge_chunk_contents(loop_chunk_ids, all_chunk_contents)
             loop_ctx = "=== Triples ===\n" + "\n".join(loop_triples[:20]) + "\n=== Chunks ===\n" + "\n".join(loop_chunk_contents[:10])
             loop_prompt = f"""
 You are an expert knowledge assistant using iterative retrieval with chain-of-thought reasoning.
@@ -738,7 +769,7 @@ Your reasoning:
                 "thought": reasoning[:300]
             })
             if "So the answer is:" in reasoning:
-                m = _re.search(r"So the answer is:\s*(.*)", reasoning, flags=_re.IGNORECASE | _re.DOTALL)
+                m = re.search(r"So the answer is:\s*(.*)", reasoning, flags=re.IGNORECASE | re.DOTALL)
                 final_answer = m.group(1).strip() if m else reasoning
                 break
             if "The new query is:" not in reasoning:
@@ -749,7 +780,7 @@ Your reasoning:
                 final_answer = initial_answer or reasoning
                 break
             current_query = new_query
-            await send_progress_update(client_id, "retrieval", min(90, 75 + step * 5), f"迭代检索 Step {step}...")
+            await send_progress_update(client_id, "retrieval", min(90, 75 + step * 5), f"Iterative retrieval Step {step}...")
             try:
                 new_ret, _ = kt_retriever.process_retrieval_results(current_query, top_k=config.retrieval.top_k_filter)
                 new_triples = new_ret.get('triples', []) or []
@@ -769,11 +800,11 @@ Your reasoning:
                 break
 
         # Final aggregation
-        final_triples = _dedup(list(all_triples))[:20]
+        final_triples = graphrag_main.deduplicate_triples(list(all_triples))[:20]
         final_chunk_ids = list(set(all_chunk_ids))
-        final_chunk_contents = _merge_chunk_contents(final_chunk_ids, all_chunk_contents)[:10]
+        final_chunk_contents = graphrag_main.merge_chunk_contents(final_chunk_ids, all_chunk_contents)[:10]
 
-        await send_progress_update(client_id, "retrieval", 100, "答案生成完成!")
+        await send_progress_update(client_id, "retrieval", 100, "Answer generation completed!")
 
         visualization_data = {
             "subqueries": prepare_subquery_visualization(sub_questions, reasoning_steps),
@@ -796,13 +827,13 @@ Your reasoning:
             visualization_data=visualization_data
         )
     except Exception as e:
-        await send_progress_update(client_id, "retrieval", 0, f"问答处理失败: {str(e)}")
+        await send_progress_update(client_id, "retrieval", 0, f"QA processing failed: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
 def prepare_subquery_visualization(sub_questions: List[Dict], reasoning_steps: List[Dict]) -> Dict:
     """Prepare subquery visualization"""
-    nodes = [{"id": "original", "name": "原始问题", "category": "question", "symbolSize": 40}]
+    nodes = [{"id": "original", "name": "Original Question", "category": "question", "symbolSize": 40}]
     links = []
 
     for i, sub_q in enumerate(sub_questions):
@@ -813,7 +844,7 @@ def prepare_subquery_visualization(sub_questions: List[Dict], reasoning_steps: L
             "category": "sub_question",
             "symbolSize": 30
         })
-        links.append({"source": "original", "target": sub_id, "name": "分解为"})
+    links.append({"source": "original", "target": sub_id, "name": "decomposed into"})
 
     return {
         "nodes": nodes,
@@ -1011,22 +1042,22 @@ async def reconstruct_dataset(dataset_name: str, client_id: str = "default"):
             else:
                 raise HTTPException(status_code=404, detail="Dataset not found")
 
-        await send_progress_update(client_id, "reconstruction", 5, "开始重新构图...")
+        await send_progress_update(client_id, "reconstruction", 5, "Starting reconstruction...")
 
         # Delete existing graph file
         graph_path = f"output/graphs/{dataset_name}_new.json"
         if os.path.exists(graph_path):
             os.remove(graph_path)
-            await send_progress_update(client_id, "reconstruction", 15, "已删除旧图谱文件...")
+            await send_progress_update(client_id, "reconstruction", 15, "Old graph file deleted...")
 
         # Delete existing cache files
         cache_dir = f"retriever/faiss_cache_new/{dataset_name}"
         if os.path.exists(cache_dir):
             import shutil
             shutil.rmtree(cache_dir)
-            await send_progress_update(client_id, "reconstruction", 25, "已清理缓存文件...")
+            await send_progress_update(client_id, "reconstruction", 25, "Cache files cleaned...")
 
-        await send_progress_update(client_id, "reconstruction", 35, "重新初始化图构建器...")
+        await send_progress_update(client_id, "reconstruction", 35, "Reinitializing graph builder...")
 
         # Initialize config
         global config
@@ -1044,7 +1075,7 @@ async def reconstruct_dataset(dataset_name: str, client_id: str = "default"):
             config=config
         )
 
-        await send_progress_update(client_id, "reconstruction", 50, "开始重新构建图谱...")
+        await send_progress_update(client_id, "reconstruction", 50, "Rebuilding graph...")
 
         # Build knowledge graph
         def build_graph_sync():
@@ -1056,13 +1087,13 @@ async def reconstruct_dataset(dataset_name: str, client_id: str = "default"):
         # Run graph reconstruction without simulated progress updates
         knowledge_graph = await loop.run_in_executor(None, build_graph_sync)
 
-        await send_progress_update(client_id, "reconstruction", 100, "图谱重构完成!")
+        await send_progress_update(client_id, "reconstruction", 100, "Graph reconstruction completed!")
         # Notify completion via WebSocket
         try:
             await manager.send_message({
                 "type": "complete",
                 "stage": "reconstruction",
-                "message": "图谱重构完成!",
+                "message": "Graph reconstruction completed!",
                 "timestamp": datetime.now().isoformat()
             }, client_id)
         except Exception as _e:
@@ -1075,12 +1106,12 @@ async def reconstruct_dataset(dataset_name: str, client_id: str = "default"):
         }
 
     except Exception as e:
-        await send_progress_update(client_id, "reconstruction", 0, f"重构失败: {str(e)}")
+        await send_progress_update(client_id, "reconstruction", 0, f"Reconstruction failed: {str(e)}")
         try:
             await manager.send_message({
                 "type": "error",
                 "stage": "reconstruction",
-                "message": f"重构失败: {str(e)}",
+                "message": f"Reconstruction failed: {str(e)}",
                 "timestamp": datetime.now().isoformat()
             }, client_id)
         except Exception as _e:
@@ -1096,11 +1127,11 @@ async def get_graph_data(dataset_name: str):
         # Return demo data
         return {
             "nodes": [
-                {"id": "node1", "name": "示例实体1", "category": "person", "value": 5, "symbolSize": 25},
-                {"id": "node2", "name": "示例实体2", "category": "location", "value": 3, "symbolSize": 20},
+                {"id": "node1", "name": "Example Entity 1", "category": "person", "value": 5, "symbolSize": 25},
+                {"id": "node2", "name": "Example Entity 2", "category": "location", "value": 3, "symbolSize": 20},
             ],
             "links": [
-                {"source": "node1", "target": "node2", "name": "位于", "value": 1}
+                {"source": "node1", "target": "node2", "name": "located_in", "value": 1}
             ],
             "categories": [
                 {"name": "person", "itemStyle": {"color": "#ff6b6b"}},
