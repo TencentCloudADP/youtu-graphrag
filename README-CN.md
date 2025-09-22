@@ -34,10 +34,10 @@ Youtu-GraphRAG框架概览
 
 ## 📲 交互式体验界面
 
+您也可以观看demo[演示视频](https://youtu.be/fVUsgClHqwc)来了解Youtu-GraphRAG的主要特性
 <div align="center">
-This video walks through the main features of the project.
-
-[](https://youtu.be/fVUsgClHqwc)
+<img src="assets/graph_demo.png" alt="Graph Construction" width="45.9%"/>
+<img src="assets/retrieval_demo.png" alt="Retrieval" width="49.4%"/>
 </div>
 
 
