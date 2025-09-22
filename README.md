@@ -37,8 +37,13 @@ A sketched overview of our proposed framework Youtu-GraphRAG.
 ## 📲 Interactive interface
 
 <div align="center">
-<iframe width="400" height="300" src="https://youtu.be/fVUsgClHqwc" frameborder="0" allowfullscreen></iframe>
+This video walks through the main features of the project.
+
+[](https://youtu.be/fVUsgClHqwc)
 </div>
+
+
+
 
 <a id="contributions"></a>
 ## 🚀 Contributions and Novelty

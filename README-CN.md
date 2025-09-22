@@ -35,7 +35,9 @@ Youtu-GraphRAG框架概览
 ## 📲 交互式体验界面
 
 <div align="center">
-<iframe width="400" height="300" src="https://youtu.be/fVUsgClHqwc" frameborder="0" allowfullscreen></iframe>
+This video walks through the main features of the project.
+
+[](https://youtu.be/fVUsgClHqwc)
 </div>
 
 
