@@ -10,7 +10,7 @@
 
 *🚀 Revolutionary framework moving Pareto Frontier with 33.6% lower token cost and 16.62% higher accuracy over SOTA baselines*
 
-[🔖 中文版](README-CN.md) • [⭐ Contributions](#contributions) • [📊 Benchmarks](https://huggingface.co/datasets/Youtu-Graph/AnonyRAG) • [🚀 Getting Started](#quickstart)
+[🔖 中文版](README-CN.md) • [🔖 日本語](README-JA.md) • [⭐ Contributions](#contributions) • [📊 Benchmarks](https://huggingface.co/datasets/Youtu-Graph/AnonyRAG) • [🚀 Getting Started](#quickstart)
 
 </div>
 
