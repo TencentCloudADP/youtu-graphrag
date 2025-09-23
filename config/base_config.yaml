@@ -187,8 +187,8 @@ prompts:
       \ needed\n   - Answerable independently with the given ontology\n   - Explicitly\
       \ reference entities and relations from the original question\n   - Designed\
       \ to retrieve relevant knowledge for the final answer\n\n2. For simple questions\
-      \ (1-2 hop), return the original question as a single sub-question\n3. Analyze the question and identify all schema types that might be involved\n4. Return\
-      \ a JSON object with sub_questions array and involved_types object.\n\nOntology:\n{ontology}\n\n\
+      \ (1-2 hop), return the original question as a single sub-question\n3. Analyze the question and identify all schema types that might be involved\n4. Only return\
+      \ a concise JSON object with sub_questions array and involved_types object.\n\nOntology:\n{ontology}\n\n\
       Question: {question}\n\nExample for complex question:\nOriginal: \"Which film\
       \ has the director died earlier, Ethnic Notions or Gordon Of Ghost City?\"\n\
       Output:\n{{\n  \"sub_questions\": [\n    {{\"sub-question\": \"Who is the director of Ethnic Notions?\"\
