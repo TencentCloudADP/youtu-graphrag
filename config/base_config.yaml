@@ -15,6 +15,7 @@ construction:
     embedding_model: all-MiniLM-L6-v2
     enable_fast_mode: true
     struct_weight: 0.3
+    max_total_communities: 100
     
 datasets:
   hotpot:
