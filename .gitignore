@@ -23,3 +23,4 @@ output/
 
 retriever/faiss_cache_new/*
 docker/Dockerfile
+site/

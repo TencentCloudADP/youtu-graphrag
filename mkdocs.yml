@@ -1,0 +1,68 @@
+# MkDocs configuration for Youtu-GraphRAG
+site_name: Youtu-GraphRAG Docs
+site_description: Documentation for the Youtu-GraphRAG framework
+repo_name: TencentCloudADP/youtu-graphrag
+repo_url: https://github.com/TencentCloudADP/youtu-graphrag
+edit_uri: edit/main/docs/
+
+theme:
+  name: mkdocs
+
+plugins:
+  - search
+
+markdown_extensions:
+  - admonition
+  - toc:
+      permalink: true
+  - tables
+  - footnotes
+  - attr_list
+
+extra_css:
+  - stylesheets/extra.css
+
+nav:
+  - Home: index.md
+  - Quickstart:
+      - Quickstart: quickstart.md
+      - Beginner Guide: quickstart_beginner.md
+  - Guides:
+      - Agents: agents.md
+      - Environments: env.md
+      - Toolkits: tools.md
+      - Configuration: config.md
+      - Evaluation: eval.md
+      - Frontend: frontend.md
+      - Docker: docker.md
+      - Examples: examples.md
+  - Reference:
+      - Agents:
+          - SimpleAgent: ref/agents/simple_agent.md
+          - OrchestraAgent: ref/agents/orchestra_agent.md
+      - Config:
+          - BaseConfig: ref/config/base_config.md
+          - AgentConfig: ref/config/agent_config.md
+          - ModelConfig: ref/config/model_config.md
+          - EvalConfig: ref/config/eval_config.md
+          - Loader: ref/config/loader.md
+      - Environment:
+          - BaseEnv: ref/env/base_env.md
+          - BrowserEnv: ref/env/browser_env.md
+      - Toolkits:
+          - BaseToolkit: ref/tool/base_toolkit.md
+          - SearchToolkit: ref/tool/search_toolkit.md
+          - DocumentToolkit: ref/tool/document_toolkit.md
+          - PythonExecutorToolkit: ref/tool/python_executor_toolkit.md
+          - BashToolkit: ref/tool/bash_toolkit.md
+          - ImageToolkit: ref/tool/image_toolkit.md
+          - AudioToolkit: ref/tool/audio_toolkit.md
+          - CodesnipToolkit: ref/tool/codesnip_toolkit.md
+          - TabularDataToolkit: ref/tool/tabular_data_toolkit.md
+          - VideoToolkit: ref/tool/video_toolkit.md
+      - Tracing:
+          - DB Tracer: ref/tracing/db_tracer.md
+      - Utils:
+          - Agents Utils: ref/utils/agents_utils.md
+          - OpenAI Utils: ref/utils/openai_utils.md
+
