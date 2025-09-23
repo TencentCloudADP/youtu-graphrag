@@ -169,7 +169,8 @@ class FastTreeComm:
             return {0: level_nodes}
         
         if n_clusters is None:
-            n_clusters = min(max(2, len(level_nodes) // 10), 200)
+            base_clusters = len(level_nodes) // 10
+            n_clusters = min(max(2, base_clusters), len(level_nodes) // 2, 200)
         
         embeddings = self.get_triple_embeddings_batch(level_nodes)
         
@@ -182,24 +183,60 @@ class FastTreeComm:
         
         return dict(clusters)
 
-    def detect_communities(self, level_nodes, max_iter=1, merge_threshold=0.5):
+    def detect_communities(self, level_nodes, max_iter=1, merge_threshold=0.5, max_total_communities=None):
         if len(level_nodes) <= 1:
             return {0: level_nodes} if level_nodes else {}
+
+        # 从配置中读取 max_total_communities，如果没有配置则使用默认值
+        if max_total_communities is None:
+            if self.config and hasattr(self.config.tree_comm, 'max_total_communities'):
+                max_total_communities = self.config.tree_comm.max_total_communities
+            else:
+                # 原有的默认逻辑：节点数的1/3，最少5个，最多200个
+                max_total_communities = min(max(5, len(level_nodes) // 3), 200)
 
         initial_clusters = self._fast_clustering(level_nodes)
         final_communities = {}
         comm_id = 0
         
-        for cluster_id, cluster_nodes in initial_clusters.items():
+        # 按簇大小排序，优先处理大簇（确保大簇能得到细分机会）
+        sorted_clusters = sorted(initial_clusters.items(), key=lambda x: len(x[1]), reverse=True)
+        processed_cluster_ids = set()
+        
+        for cluster_id, cluster_nodes in sorted_clusters:
+            processed_cluster_ids.add(cluster_id)
+            
             if len(cluster_nodes) <= 3:
                 final_communities[comm_id] = cluster_nodes
                 comm_id += 1
             else:
-                sub_communities = self._refine_cluster(cluster_nodes, max_iter, merge_threshold)
-                for sub_comm in sub_communities.values():
-                    final_communities[comm_id] = sub_comm
+                # 检查是否还有剩余配额进行细分
+                if len(final_communities) >= max_total_communities:
+                    # 配额已满，将剩余簇直接作为社区，不再细分
+                    final_communities[comm_id] = cluster_nodes
                     comm_id += 1
+                else:
+                    sub_communities = self._refine_cluster(cluster_nodes, max_iter, merge_threshold)
+                    for sub_comm in sub_communities.values():
+                        final_communities[comm_id] = sub_comm
+                        comm_id += 1
+                        
+                        # 如果社区数量已经达到上限，停止细分
+                        if len(final_communities) >= max_total_communities:
+                            break
+                    
+                    # 如果达到上限，将剩余未处理的簇直接添加为社区
+                    if len(final_communities) >= max_total_communities:
+                        for remaining_cluster_id, remaining_nodes in sorted_clusters:
+                            if remaining_cluster_id not in processed_cluster_ids:
+                                if len(final_communities) < max_total_communities:
+                                    final_communities[comm_id] = remaining_nodes
+                                    comm_id += 1
+                                else:
+                                    break
+                        break
         
+        logger.info(f"Generated {len(final_communities)} communities from {len(level_nodes)} nodes")
         return final_communities
 
     def _refine_cluster(self, cluster_nodes, max_iter, merge_threshold):
