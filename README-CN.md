@@ -9,7 +9,7 @@
 <a href=https://deepwiki.com/TencentCloudADP/youtu-graphrag><img src=https://img.shields.io/badge/DeepWiki-Tencent-blue.svg></a>
 [![GitHub stars](https://img.shields.io/github/stars/TencentCloudADP/youtu-graphrag?style=social)](https://github.com/TencentCloudADP/youtu-graphrag)
 
-*🚀 重新定义图检索增强推理范式，以 33.6%的 Token 成本节约和 16.62%的精度提升实现帕累托改进*
+*🚀 重新定义图检索增强推理范式，以 33.6%的 Token 成本节约和 16.62% 的精度提升实现帕累托改进*
 
 [🔖 English](README.md) • [🔖 日本語](README-JA.md) • [⭐ 核心贡献与创新](#contribution) • [📊 基准测试](https://huggingface.co/datasets/Youtu-Graph/AnonyRAG) • [🚀 快速开始](#quickstart)
 
@@ -99,7 +99,7 @@ Youtu-GraphRAG 框架概览
 - 🔄 **完善向后兼容**：确保现有代码在框架升级后仍能正常运行
 
 ## 📊实验表现
-我们在 GraphRAG-Bench、HotpotQA 和 MuSiQue 等六个专业跨领域多语言的基准数据集上进行了广泛实验，充分证明了 Youtu-GraphRAG 的企业级扩展性和泛化性。相比最先进的基线方法，Youtu-GraphRAG 显著推动了帕累托前沿突破，实现了最高<strong>90.71%的 Token 成本节约</strong>和<strong>16.62%的精度提升</strong>。实验结果充分展现了我们框架的卓越泛化性，能够在 Schema 干预最小化的前提下实现跨领域的无缝迁移。
+我们在 GraphRAG-Bench、HotpotQA 和 MuSiQue 等六个专业跨领域多语言的基准数据集上进行了广泛实验，充分证明了 Youtu-GraphRAG 的企业级扩展性和泛化性。相比最先进的基线方法，Youtu-GraphRAG 显著推动了帕累托前沿突破，实现了最高<strong>33.6%的 Token 成本节约</strong>和<strong>16.62%的精度提升</strong>。实验结果充分展现了我们框架的卓越泛化性，能够在 Schema 干预最小化的前提下实现跨领域的无缝迁移。
 
 <div align="center">
 <img src="assets/performance.png" alt="Cost/acc performance" width="90%"/>
@@ -164,9 +164,9 @@ youtu-graphrag/
 # 1. 克隆项目
 git clone https://github.com/TencentCloudADP/youtu-graphrag
 
-# 2. 复制 。env.example 文件格式创建 .env
+# 2. 复制 .env.example 文件格式创建 .env
 cd youtu-graphrag && cp .env.example .env
-# 按照如下格式在。env 中配置兼容 OpenAI API 格式的 LLM API
+# 按照如下格式在 .env 中配置兼容 OpenAI API 格式的 LLM API
 # LLM_MODEL=deepseek-chat
 # LLM_BASE_URL=https://api.deepseek.com
 # LLM_API_KEY=sk-xxxxxx
@@ -189,9 +189,9 @@ curl -v http://localhost:8000
 # 1. 克隆项目
 git clone https://github.com/TencentCloudADP/youtu-graphrag
 
-# 2. 按照。env.example 文件格式创建 .env
+# 2. 按照.env.example 文件格式创建 .env
 cd youtu-graphrag && touch .env
-# 按照如下格式在。env 中配置 OpenAI API 格式的 LLM API
+# 按照如下格式在.env 中配置 OpenAI API 格式的 LLM API
 # LLM_MODEL=deepseek-chat
 # LLM_BASE_URL=https://api.deepseek.com
 # LLM_API_KEY=sk-xxxxxx
