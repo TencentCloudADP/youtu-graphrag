@@ -1,5 +1,5 @@
 construction:
-  chunk_size: 1000
+  chunk_size: 400
   datasets_no_chunk:
   - hotpot
   - 2wiki
@@ -8,9 +8,9 @@ construction:
   - annoy_chs
   - annoy_eng
   - demo
-  max_workers: 32
+  max_workers: 4  # 降低并发数，避免Ollama过载
   mode: agent
-  overlap: 200
+  overlap: 100
   tree_comm:
     embedding_model: all-MiniLM-L6-v2
     enable_fast_mode: true
@@ -52,6 +52,11 @@ datasets:
     qa_path: data/anony_eng/final_qa_pairs.json
     schema_path: schemas/anony_eng.json
     graph_output: output/graphs/anony_eng_new.json
+  building_assets:
+    corpus_path: data/uploaded/building_assets/corpus.json
+    qa_path: data/uploaded/building_assets/qa_pairs.json
+    schema_path: schemas/building_assets.json
+    graph_output: output/graphs/building_assets_new.json
 
 embeddings:
   batch_size: 32

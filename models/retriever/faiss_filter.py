@@ -15,6 +15,24 @@ from sentence_transformers import SentenceTransformer
 from utils.logger import logger
 
 class DualFAISSRetriever:
+    
+    def _get_safe_dataset_name(self, dataset_name: str) -> str:
+        """将数据集名称转换为文件系统安全的名称"""
+        import hashlib
+        import re
+        
+        # 如果包含中文或特殊字符，使用MD5哈希
+        if re.search(r'[^\x00-\x7F]', dataset_name) or not re.match(r'^[a-zA-Z0-9_-]+$', dataset_name):
+            # 生成MD5哈希，但保留一些可读性
+            hash_obj = hashlib.md5(dataset_name.encode('utf-8'))
+            hash_str = hash_obj.hexdigest()[:8]  # 使用前8位
+            # 尝试保留英文字符
+            safe_chars = re.sub(r'[^\x00-\x7Fa-zA-Z0-9_-]', '', dataset_name)
+            if safe_chars:
+                return f"{safe_chars}_{hash_str}"
+            else:
+                return f"dataset_{hash_str}"
+        return dataset_name
     def __init__(self, dataset, graph: nx.MultiDiGraph, model_name: str = "all-MiniLM-L6-v2", cache_dir: str = "retriever/faiss_cache_new", device: str = None):
         """
         :param graph: nx graph
@@ -25,10 +43,13 @@ class DualFAISSRetriever:
         self.model = SentenceTransformer(model_name)
         self.cache_dir = cache_dir
         os.makedirs(cache_dir, exist_ok=True)
-        self.dataset = dataset
+        
+        # 使用安全的数据集名称，避免中文路径问题
+        self.original_dataset = dataset
+        self.dataset = self._get_safe_dataset_name(dataset)
         
         # Create dataset-specific cache directory
-        dataset_cache_dir = f"{self.cache_dir}/{self.dataset}"
+        dataset_cache_dir = os.path.join(self.cache_dir, self.dataset)
         os.makedirs(dataset_cache_dir, exist_ok=True)
         
         self.triple_index = None
@@ -295,8 +316,10 @@ class DualFAISSRetriever:
         Path 2: Retrieve nodes through communities.
         Returns only nodes that have a valid, cached embedding.
         """
+        # 柔性降级：当图谱中没有community节点或索引缺失时，跳过该通路而不是抛错
         if not self.comm_index:
-            raise ValueError("Please build community index first!")
+            logger.warning("Community index not available (no community nodes or cache missing). Skipping community retrieval path.")
+            return []
         
         # Ensure query_embed is on the correct device before transformation
         if isinstance(query_embed, torch.Tensor):
@@ -965,7 +988,11 @@ class DualFAISSRetriever:
         faiss.normalize_L2(embeddings_np)
         index.add(embeddings_np)
         
-        faiss.write_index(index, f"{self.cache_dir}/{self.dataset}/node.index")
+        # 使用安全的文件路径，避免中文路径问题
+        index_path = os.path.join(self.cache_dir, self.dataset, "node.index")
+        # 确保目录存在
+        os.makedirs(os.path.dirname(index_path), exist_ok=True)
+        faiss.write_index(index, index_path)
         self.node_map = {str(i): n for i, n in enumerate(nodes)}
         with open(f"{self.cache_dir}/{self.dataset}/node_map.json", 'w') as f:
             json.dump(self.node_map, f)
@@ -992,7 +1019,10 @@ class DualFAISSRetriever:
         faiss.normalize_L2(embeddings_np)
         index.add(embeddings_np)
         
-        faiss.write_index(index, f"{self.cache_dir}/{self.dataset}/relation.index")
+        # 使用安全的文件路径，避免中文路径问题
+        relation_index_path = os.path.join(self.cache_dir, self.dataset, "relation.index")
+        os.makedirs(os.path.dirname(relation_index_path), exist_ok=True)
+        faiss.write_index(index, relation_index_path)
         self.relation_map = {str(i): r for i, r in enumerate(relations)}
         with open(f"{self.cache_dir}/{self.dataset}/relation_map.json", 'w') as f:
             json.dump(self.relation_map, f)
@@ -1014,7 +1044,10 @@ class DualFAISSRetriever:
         faiss.normalize_L2(embeddings)
         index.add(embeddings)
         
-        faiss.write_index(index, f"{self.cache_dir}/{self.dataset}/triple.index")
+        # 使用安全的文件路径，避免中文路径问题
+        triple_index_path = os.path.join(self.cache_dir, self.dataset, "triple.index")
+        os.makedirs(os.path.dirname(triple_index_path), exist_ok=True)
+        faiss.write_index(index, triple_index_path)
         with open(f"{self.cache_dir}/{self.dataset}/triple_map.json", 'w') as f:
             json.dump({i: n for i, n in enumerate(triples)}, f)
         
@@ -1050,7 +1083,10 @@ class DualFAISSRetriever:
         faiss.normalize_L2(embeddings)
         index.add(embeddings)
         
-        faiss.write_index(index, f"{self.cache_dir}/{self.dataset}/comm.index")
+        # 使用安全的文件路径，避免中文路径问题
+        comm_index_path = os.path.join(self.cache_dir, self.dataset, "comm.index")
+        os.makedirs(os.path.dirname(comm_index_path), exist_ok=True)
+        faiss.write_index(index, comm_index_path)
         with open(f"{self.cache_dir}/{self.dataset}/comm_map.json", 'w') as f:
             json.dump({i: n for i, n in enumerate(valid_communities)}, f)
         
@@ -1059,12 +1095,13 @@ class DualFAISSRetriever:
 
     def _load_indices(self):
         logger.info("Starting _load_indices...")
-        triple_path = f"{self.cache_dir}/{self.dataset}/triple.index"
-        comm_path = f"{self.cache_dir}/{self.dataset}/comm.index"
-        node_path = f"{self.cache_dir}/{self.dataset}/node.index"
-        relation_path = f"{self.cache_dir}/{self.dataset}/relation.index"
-        node_embed_path = f"{self.cache_dir}/{self.dataset}/node_embeddings.pt"
-        relation_embed_path = f"{self.cache_dir}/{self.dataset}/relation_embeddings.pt"
+        # 使用os.path.join确保路径兼容性
+        triple_path = os.path.join(self.cache_dir, self.dataset, "triple.index")
+        comm_path = os.path.join(self.cache_dir, self.dataset, "comm.index")
+        node_path = os.path.join(self.cache_dir, self.dataset, "node.index")
+        relation_path = os.path.join(self.cache_dir, self.dataset, "relation.index")
+        node_embed_path = os.path.join(self.cache_dir, self.dataset, "node_embeddings.pt")
+        relation_embed_path = os.path.join(self.cache_dir, self.dataset, "relation_embeddings.pt")
         
         logger.debug(f"Checking cache files...")
         logger.debug(f"node_path exists: {os.path.exists(node_path)}")

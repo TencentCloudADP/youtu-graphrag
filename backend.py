@@ -10,6 +10,7 @@ import json
 import asyncio
 import glob
 import shutil
+import re
 from typing import List, Dict, Optional
 from datetime import datetime
 
@@ -24,7 +25,14 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 import uvicorn
 
-from utils.logger import logger
+from utils.logger import logger, setup_logger
+import os
+from datetime import datetime
+
+# 启用文件日志
+os.makedirs("output/logs", exist_ok=True)
+log_file_path = f"output/logs/youtu-graphrag-{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
+logger = setup_logger(log_file=log_file_path)
 import ast
 
 # Try to import GraphRAG components
@@ -230,12 +238,13 @@ async def upload_files(files: List[UploadFile] = File(...), client_id: str = "de
     MAX_FILE_SIZE = 15 * 1024 * 1024  # 15 MB
 
     def secure_filename_custom(filename: str) -> str:
-        """Manually implement a simplified secure_filename function."""
+        """Manually implement a simplified secure_filename function that supports Chinese characters."""
         if not filename:
             return ""
         filename = os.path.basename(filename)  # Crucial: remove any directory info
         filename = filename.replace(" ", "_")
-        filename = re.sub(r"[^a-zA-Z0-9_.-]", "", filename)
+        # 保留中文字符、字母、数字、下划线、连字符和点号
+        filename = re.sub(r"[^\w\u4e00-\u9fff.-]", "", filename)
         return filename
 
     try:
@@ -248,9 +257,18 @@ async def upload_files(files: List[UploadFile] = File(...), client_id: str = "de
             raise HTTPException(status_code=400, detail="Invalid main file name.")
 
         original_name = os.path.splitext(safe_main_filename)[0]
+        
+        # 改进的数据集名称生成逻辑
+        # 1. 首先尝试保留字母数字字符
         dataset_name = "".join(c for c in original_name if c.isalnum() or c in ('-', '_')).rstrip()
-
-        if not dataset_name:
+        
+        # 2. 如果结果为空或只包含特殊字符，尝试保留中文字符
+        if not dataset_name or dataset_name in ['-', '_']:
+            # 保留中文字符、字母、数字、连字符和下划线
+            dataset_name = "".join(c for c in original_name if c.isalnum() or c in ('-', '_') or '\u4e00' <= c <= '\u9fff').rstrip()
+        
+        # 3. 如果仍然为空，使用时间戳生成默认名称
+        if not dataset_name or dataset_name in ['-', '_']:
             dataset_name = f"dataset_{int(datetime.now().timestamp())}"
 
         base_name = dataset_name
@@ -276,12 +294,15 @@ async def upload_files(files: List[UploadFile] = File(...), client_id: str = "de
 
             # Vulnerability Fix 2: Sanitize filename to prevent Path Traversal
             safe_filename = secure_filename_custom(file.filename)
-            if not safe_filename:
-                logger.warning(f"Skipping file with invalid name: '{file.filename}'")
-                continue
-
+            
+            # 如果处理后的文件名为空或只有扩展名，生成一个默认名称
+            if not safe_filename or safe_filename.startswith('.'):
+                _, original_ext = os.path.splitext(file.filename)
+                safe_filename = f"file_{int(datetime.now().timestamp())}{original_ext}"
+            
             # Vulnerability Fix 3: Check file extension to prevent malicious script uploads
             _, ext = os.path.splitext(safe_filename)
+            
             if ext.lower() not in ALLOWED_EXTENSIONS:
                 logger.warning(f"Skipping file '{safe_filename}': File extension '{ext}' is not allowed.")
                 continue
@@ -428,6 +449,11 @@ async def construct_graph(request: GraphConstructionRequest, client_id: str = "d
         )
 
     except Exception as e:
+        import traceback
+        error_details = traceback.format_exc()
+        logger.error(f"Graph construction failed for dataset '{dataset_name}': {str(e)}")
+        logger.error(f"Full traceback:\n{error_details}")
+        
         await send_progress_update(client_id, "construction", 0, f"构建失败: {str(e)}")
         try:
             await manager.send_message({
@@ -710,9 +736,28 @@ async def ask_question(request: QuestionRequest, client_id: str = "default"):
             loop_triples = _dedup(list(all_triples))
             loop_chunk_ids = list(set(all_chunk_ids))
             loop_chunk_contents = _merge_chunk_contents(loop_chunk_ids, all_chunk_contents)
+            
+            # 调试日志：检查最终context生成
+            logger.info(f"Step{step} - loop_chunk_ids数量: {len(loop_chunk_ids)}")
+            logger.info(f"Step{step} - all_chunk_contents数量: {len(all_chunk_contents)}")
+            logger.info(f"Step{step} - loop_chunk_contents数量: {len(loop_chunk_contents)}")
+            if loop_chunk_contents:
+                logger.info(f"Step{step} - 第一个chunk内容: {loop_chunk_contents[0][:100]}...")
+            
             loop_ctx = "=== Triples ===\n" + "\n".join(loop_triples[:20]) + "\n=== Chunks ===\n" + "\n".join(loop_chunk_contents[:10])
             loop_prompt = f"""
 You are an expert knowledge assistant using iterative retrieval with chain-of-thought reasoning.
+
+CRITICAL: When analyzing building equipment information, understand that device names contain location information:
+- "A栋3层空调箱" means an air conditioning unit located on the 3rd floor of Building A
+- "A栋3层01号变风量末端" means a VAV terminal located on the 3rd floor of Building A  
+- "A栋3层照明配电箱" means a lighting distribution box located on the 3rd floor of Building A
+- Equipment names like "X栋Y层设备名" directly indicate the building (X栋) and floor (Y层/YF) location
+
+CRITICAL RULE: If the question asks about equipment on a specific floor (like "A栋3F" or "A栋3层"), and you see equipment with matching names in the chunks, these ARE NOT examples - they are ACTUAL REAL EQUIPMENT located on that floor. You MUST list them as the answer.
+
+For example, if you see "#### 设备: A栋3层空调箱 (A-AHU-03)" in the chunks, this is a REAL air conditioning unit on A栋3层, not an example.
+
 Current Question: {question}
 Current Iteration Query: {current_query}
 Knowledge Context:\n{loop_ctx}
@@ -755,15 +800,24 @@ Your reasoning:
                 new_triples = new_ret.get('triples', []) or []
                 new_chunk_ids = new_ret.get('chunk_ids', []) or []
                 new_chunk_contents = new_ret.get('chunk_contents', []) or []
+                
+                # 调试日志：检查新检索结果
+                logger.info(f"迭代检索Step{step} - 新增chunk数量: {len(new_chunk_ids)}")
+                logger.info(f"迭代检索Step{step} - 当前all_chunk_contents数量: {len(all_chunk_contents)}")
+                
                 if isinstance(new_chunk_contents, dict):
                     for cid, ctext in new_chunk_contents.items():
                         all_chunk_contents[cid] = ctext
+                        logger.info(f"迭代检索Step{step} - 添加chunk: {cid} - {ctext[:100]}...")
                 else:
                     for i_c, cid in enumerate(new_chunk_ids):
                         if i_c < len(new_chunk_contents):
                             all_chunk_contents[cid] = new_chunk_contents[i_c]
+                            logger.info(f"迭代检索Step{step} - 添加chunk: {cid} - {new_chunk_contents[i_c][:100]}...")
+                
                 all_triples.update(new_triples)
                 all_chunk_ids.update(new_chunk_ids)
+                logger.info(f"迭代检索Step{step}后 - 总chunk数量: {len(all_chunk_contents)}")
             except Exception as e:
                 logger.error(f"Iterative retrieval failed: {e}")
                 break
@@ -1122,4 +1176,4 @@ async def startup_event():
     logger.info("🚀 Youtu-GraphRAG Unified Interface initialized")
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=8866)

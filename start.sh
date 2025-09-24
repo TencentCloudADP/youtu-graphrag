@@ -21,7 +21,7 @@ pkill -f backend.py 2>/dev/null || true
 
 # Start the backend server
 echo "🚀 Starting backend server..."
-echo "📱 Access the application at: http://localhost:8000"
+echo "📱 Access the application at: http://localhost:8866"
 echo "🛑 Press Ctrl+C to stop the server"
 echo "=========================================="
 

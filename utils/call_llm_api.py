@@ -20,12 +20,13 @@ class LLMCompletionCall:
             raise ValueError("LLM API key not provided")
         self.client = OpenAI(base_url=self.llm_base_url, api_key = self.llm_api_key)
 
-    def call_api(self, content: str) -> str:
+    def call_api(self, content: str, timeout: int = 120) -> str:
         """
         Call API to generate text with retry mechanism.
         
         Args:
             content: Prompt content
+            timeout: Timeout in seconds (default 120s)
             
         Returns:
             Generated text response
@@ -35,7 +36,8 @@ class LLMCompletionCall:
             completion = self.client.chat.completions.create(
                 model=self.llm_model,
                 messages=[{"role": "user", "content": content}],
-                temperature=0.3
+                temperature=0.3,
+                timeout=timeout
             )
             raw = completion.choices[0].message.content or ""
             clean_completion = self._clean_llm_content(raw)

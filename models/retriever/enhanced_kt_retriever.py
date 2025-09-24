@@ -152,10 +152,52 @@ class KTRetriever:
         """
         Get query embedding with simple caching (most expensive operation)
         """
+        # 查询增强：扩展楼层同义词
+        enhanced_query = self._enhance_query_for_building_assets(query)
         query_embed = torch.tensor(
-                    self.qa_encoder.encode(query)
+                    self.qa_encoder.encode(enhanced_query)
                 ).float().to(self.device)
         return query_embed
+    
+    def _enhance_query_for_building_assets(self, query: str) -> str:
+        """
+        增强建筑资产查询，扩展楼层同义词和设备类型
+        """
+        enhanced_query = query
+        
+        # 楼层同义词扩展
+        floor_synonyms = {
+            "3F": ["3层", "三层", "3F层"],
+            "3层": ["3F", "三层", "3F层"], 
+            "三层": ["3F", "3层", "3F层"],
+            "2F": ["2层", "二层", "2F层"],
+            "2层": ["2F", "二层", "2F层"],
+            "二层": ["2F", "2层", "2F层"],
+            "1F": ["1层", "一层", "1F层"],
+            "1层": ["1F", "一层", "1F层"],
+            "一层": ["1F", "1层", "1F层"],
+        }
+        
+        # 检查并扩展楼层表示
+        for floor, synonyms in floor_synonyms.items():
+            if floor in query:
+                # 添加同义词到查询中
+                synonym_text = " ".join(synonyms)
+                enhanced_query = f"{enhanced_query} {synonym_text}"
+                break
+        
+        # 设备类型扩展
+        if "设备" in query:
+            device_types = ["空调箱", "配电箱", "变风量末端", "冷机", "水泵", "配电柜"]
+            enhanced_query = f"{enhanced_query} {' '.join(device_types)}"
+        
+        # 建筑扩展
+        if "A栋" in query:
+            enhanced_query = f"{enhanced_query} A座 A建筑 A楼"
+        elif "B栋" in query:
+            enhanced_query = f"{enhanced_query} B座 B建筑 B楼"
+            
+        return enhanced_query
 
     def _precompute_node_texts(self):
         """
@@ -549,6 +591,8 @@ class KTRetriever:
         """
         start_time = time.time()
         
+        # 保存原始查询供chunk检索使用
+        self._current_query = question
         question_embed = self._get_query_embedding(question)
         query_time = time.time() - start_time
         
@@ -788,7 +832,31 @@ class KTRetriever:
         """Get the name property of a node."""
         node_data = self.graph.nodes.get(node_id, {})
         properties = node_data.get('properties', {})
-        return properties.get('name', node_id)
+        name = properties.get('name', node_id)
+        # 别名对齐：LOC代码与中文楼层/空间名互映射
+        try:
+            alias = properties.get('alias') or properties.get('aliases')
+            if isinstance(alias, str) and alias:
+                return alias
+            if isinstance(alias, list) and alias:
+                return alias[0]
+            # 简单规则：LOC-A-03 → A栋三层
+            if isinstance(name, str) and name.startswith("LOC-"):
+                import re
+                m = re.match(r"LOC-([AB])-([0-9]{2})(?:-.+)?", name)
+                if m:
+                    building = f"{m.group(1)}栋"
+                    floor_num = m.group(2)
+                    floor_map = {"01":"一","02":"二","03":"三","04":"四","05":"五","06":"六","07":"七","08":"八","09":"九","10":"十"}
+                    floor_cn = floor_map.get(floor_num, floor_num)
+                    return f"{building}{floor_cn}层"
+            # 反向：A栋三层 → LOC-A-03（若有location_id属性）
+            loc_id = properties.get('location_id') or properties.get('locationId')
+            if isinstance(loc_id, str) and loc_id.startswith("LOC-"):
+                return name
+        except Exception:
+            pass
+        return name
 
     def _parallel_dual_path_retrieval(self, question_embed: torch.Tensor, question: str) -> Dict:
         all_chunk_ids = set()
@@ -957,10 +1025,113 @@ class KTRetriever:
             'nodes': keyword_nodes
         }
 
-    def _path_strategy(self, question: str):
-        """Execute path-based search strategy."""
-        self._extract_query_keywords(question)
-        return
+    def _path_strategy(self, question: str, question_embed: torch.Tensor = None) -> List[Tuple[str, str, str, float]]:
+        """Graph-first path strategy: from floor/building anchors → assets.
+        Returns list of scored triples (h, r, t, score)."""
+        try:
+            import re
+            # 1) parse building/floor anchors
+            building = None
+            m_b = re.search(r"([AB])栋", question)
+            if m_b:
+                building = m_b.group(1)
+            floor_cn = None
+            m_f = re.search(r"(\d+)F|(\d+)层|([一二三四五六七八九十]+)层", question)
+            if m_f:
+                if m_f.group(1) or m_f.group(2):
+                    num = m_f.group(1) or m_f.group(2)
+                    num = str(num).zfill(1)
+                    map_cn = {"1":"一","2":"二","3":"三","4":"四","5":"五","6":"六","7":"七","8":"八","9":"九","10":"十"}
+                    floor_cn = map_cn.get(num, num)
+                else:
+                    floor_cn = m_f.group(3)
+
+            # LOC pattern directly
+            m_loc = re.search(r"LOC-[AB]-\d{2}(?:-[A-Z0-9\-]+)?", question)
+            loc_in_query = m_loc.group(0) if m_loc else None
+
+            # 2) generate anchor names
+            floor_name_candidates = set()
+            loc_candidates = set()
+            if building and floor_cn:
+                floor_name_candidates.add(f"{building}栋{floor_cn}层")
+                # also add plain building
+                floor_name_candidates.add(f"{building}栋")
+                # LOC canonical
+                num_map = {"一":"01","二":"02","三":"03","四":"04","五":"05","六":"06","七":"07","八":"08","九":"09","十":"10"}
+                floor_num2 = num_map.get(floor_cn)
+                if floor_num2:
+                    loc_candidates.add(f"LOC-{building}-{floor_num2}")
+            if loc_in_query:
+                loc_candidates.add(loc_in_query)
+
+            # 3) find matching floor/location nodes in graph
+            anchor_nodes = set()
+            for node_id, node_data in self.graph.nodes(data=True):
+                props = node_data.get('properties', {})
+                name = props.get('name', '')
+                location_id = props.get('location_id') or props.get('locationId') or ''
+                if isinstance(name, str):
+                    if any(cand and cand in name for cand in floor_name_candidates):
+                        anchor_nodes.add(node_id)
+                if isinstance(location_id, str):
+                    if any(cand and location_id.startswith(cand) for cand in loc_candidates):
+                        anchor_nodes.add(node_id)
+                # direct LOC name match
+                if isinstance(name, str) and any(cand and name.startswith(cand) for cand in loc_candidates):
+                    anchor_nodes.add(node_id)
+
+            # 4) traverse: locations part_of → floor; assets located_in → location
+            triples: List[Tuple[str, str, str, float]] = []
+            visited_locations = set(anchor_nodes)
+            # assets directly located in anchor locations
+            for loc in list(anchor_nodes):
+                # incoming edges: asset --located_in--> loc
+                try:
+                    for u, v, data in self.graph.in_edges(loc, data=True):
+                        rel = data.get('relation') or data.get('label')
+                        if rel == 'located_in':
+                            triples.append((u, 'located_in', v, 0.96))
+                except Exception:
+                    pass
+                # out edges: loc --part_of--> floor; then assets located in this loc
+                try:
+                    for u, v, data in self.graph.out_edges(loc, data=True):
+                        rel = data.get('relation') or data.get('label')
+                        if rel == 'part_of' and v not in visited_locations:
+                            visited_locations.add(v)
+                except Exception:
+                    pass
+
+            # expand one level: find locations that are part_of any anchor floor
+            for floor_node in list(anchor_nodes):
+                try:
+                    for u, v, data in self.graph.in_edges(floor_node, data=True):
+                        if data.get('relation') == 'part_of':
+                            # u is a location under the floor
+                            # assets located in u
+                            try:
+                                for a, b, d2 in self.graph.in_edges(u, data=True):
+                                    if d2.get('relation') == 'located_in':
+                                        triples.append((a, 'located_in', u, 0.95))
+                            except Exception:
+                                pass
+                except Exception:
+                    pass
+
+            # dedup
+            seen = set()
+            dedup_triples = []
+            for h, r, t, s in triples:
+                key = (h, r, t)
+                if key in seen:
+                    continue
+                seen.add(key)
+                dedup_triples.append((h, r, t, s))
+            return dedup_triples[: self.top_k]
+        except Exception as e:
+            logger.error(f"Path strategy failed: {e}")
+            return []
 
     def _node_relation_retrieval(self, question_embed: torch.Tensor, question: str = "") -> Dict:
         overall_start = time.time()
@@ -1432,7 +1603,7 @@ class KTRetriever:
         chunk_id_set = set()
         
         for chunk_id, score, content in zip(chunk_ids, chunk_scores, chunk_contents):
-            formatted_result = f"[Chunk {chunk_id}] {content[:200]}... [score: {score:.3f}]"
+            formatted_result = f"[Chunk {chunk_id}] {content[:500]}... [score: {score:.3f}]"
             formatted_results.append(formatted_result)
             chunk_id_set.add(chunk_id)
             
@@ -1452,6 +1623,13 @@ class KTRetriever:
         if path1_triples:
             path1_scored = self._rerank_triples_by_relevance(path1_triples, question_embed)
             all_scored_triples.extend(path1_scored)
+
+        # Add graph-first path_triples with higher base score to prioritize
+        path_triples = results.get('path_triples', [])
+        if path_triples:
+            # Boost scores slightly to float to top
+            boosted = [(h, r, t, min(0.99, (s + 0.2))) for (h, r, t, s) in path_triples]
+            all_scored_triples.extend(boosted)
         
         # Sort by score (descending) and return top k
         all_scored_triples.sort(key=lambda x: x[3], reverse=True)
@@ -1724,6 +1902,16 @@ class KTRetriever:
                 4. For factual questions, provide the specific fact or entity name
                 5. For temporal questions, provide the specific date, year, or time period
 
+                CRITICAL: When analyzing building equipment information, understand that device names contain location information:
+                - "A栋3层空调箱" means an air conditioning unit located on the 3rd floor of Building A
+                - "A栋3层01号变风量末端" means a VAV terminal located on the 3rd floor of Building A
+                - "A栋3层照明配电箱" means a lighting distribution box located on the 3rd floor of Building A
+                - Equipment names like "X栋Y层设备名" directly indicate the building (X栋) and floor (Y层/YF) location
+
+                CRITICAL RULE: If the question asks about equipment on a specific floor (like "A栋3F" or "A栋3层"), and you see equipment with matching names in the chunks, these ARE NOT examples - they are ACTUAL REAL EQUIPMENT located on that floor. You MUST list them as the answer.
+
+                For example, if you see "#### 设备: A栋3层空调箱 (A-AHU-03)" in the chunks, this is a REAL air conditioning unit on A栋3层, not an example.
+
                 Question: {question}
 
                 Knowledge Context:
@@ -1738,8 +1926,42 @@ class KTRetriever:
         answer = self.llm_client.call_api(prompt)
         logger.info("Retrieved context:")
         logger.info(prompt)
-        logger.info(f"Answer: {answer}")  
+        logger.info(f"Answer: {answer}")
+        
+        # 保存详细检索日志到文件
+        self._save_retrieval_log(prompt, answer)
         return answer
+    
+    def _save_retrieval_log(self, prompt: str, answer: str):
+        """保存详细的检索过程到日志文件"""
+        try:
+            import os
+            from datetime import datetime
+            
+            # 确保日志目录存在
+            log_dir = "output/logs/retrieval"
+            os.makedirs(log_dir, exist_ok=True)
+            
+            # 创建时间戳文件名
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")[:-3]  # 精确到毫秒
+            log_file = f"{log_dir}/retrieval_{timestamp}.log"
+            
+            with open(log_file, 'w', encoding='utf-8') as f:
+                f.write("="*80 + "\n")
+                f.write(f"检索时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+                f.write("="*80 + "\n\n")
+                f.write("完整检索上下文:\n")
+                f.write("-"*50 + "\n")
+                f.write(prompt)
+                f.write("\n" + "-"*50 + "\n\n")
+                f.write("生成答案:\n")
+                f.write("-"*20 + "\n")
+                f.write(answer)
+                f.write("\n" + "-"*20 + "\n")
+                
+            logger.info(f"详细检索日志已保存到: {log_file}")
+        except Exception as e:
+            logger.warning(f"保存检索日志失败: {e}")
 
 
     def _extract_chunk_ids_from_nodes(self, nodes: List[str]) -> set:
@@ -2605,23 +2827,58 @@ class KTRetriever:
                     "chunk_contents": []
                 }
             
+            # 多查询策略：使用多个查询变体提高召回率
+            all_chunk_results = {}
+            
+            # 1. 使用增强后的查询嵌入（已经包含同义词）
             query_embed_np = question_embed.cpu().numpy().reshape(1, -1).astype('float32')
             scores, indices = self.chunk_faiss_index.search(query_embed_np, min(top_k, self.chunk_faiss_index.ntotal))
+            
+            # 收集第一轮结果
+            self._collect_chunk_results(all_chunk_results, scores[0], indices[0])
+            
+            # 2. 基于规则的精确匹配后备（解决嵌入模型语义匹配失败问题）
+            original_query = getattr(self, '_current_query', '')
+            if original_query:
+                rule_based_results = self._rule_based_chunk_matching(original_query)
+                # 将规则匹配结果添加到总结果中，给予高分数
+                for chunk_id, chunk_content in rule_based_results.items():
+                    if chunk_id in self.chunk_id_to_index:
+                        idx = self.chunk_id_to_index[chunk_id]
+                        # 给规则匹配结果高分数，确保它们排在前面
+                        all_chunk_results[idx] = {
+                            'chunk_id': chunk_id,
+                            'score': 0.95  # 高分数确保规则匹配优先
+                        }
+            
+            # 2. 生成楼层同义词查询并检索
+            original_query = getattr(self, '_current_query', '')
+            if original_query:
+                synonym_queries = self._generate_floor_synonym_queries(original_query)
+                for syn_query in synonym_queries:
+                    syn_embed = torch.tensor(self.qa_encoder.encode(syn_query)).float().to(self.device)
+                    syn_embed_np = syn_embed.cpu().numpy().reshape(1, -1).astype('float32')
+                    syn_scores, syn_indices = self.chunk_faiss_index.search(syn_embed_np, min(top_k//2, self.chunk_faiss_index.ntotal))
+                    self._collect_chunk_results(all_chunk_results, syn_scores[0], syn_indices[0])
+            
+            # 合并和排序所有结果
+            sorted_results = sorted(all_chunk_results.items(), key=lambda x: x[1]['score'], reverse=True)[:top_k]
             
             chunk_ids = []
             similarity_scores = []
             chunk_contents = []
             
-            for i, (score, idx) in enumerate(zip(scores[0], indices[0])):
-                if idx != -1 and idx in self.index_to_chunk_id:
-                    chunk_id = self.index_to_chunk_id[idx]
-                    chunk_ids.append(chunk_id)
-                    similarity_scores.append(float(score))
-                    
-                    if chunk_id in self.chunk2id:
-                        chunk_contents.append(self.chunk2id[chunk_id])
-                    else:
-                        chunk_contents.append(f"[Missing content for chunk {chunk_id}]")
+            for idx, result_data in sorted_results:
+                chunk_id = result_data['chunk_id']
+                score = result_data['score']
+                
+                chunk_ids.append(chunk_id)
+                similarity_scores.append(float(score))
+                
+                if chunk_id in self.chunk2id:
+                    chunk_contents.append(self.chunk2id[chunk_id])
+                else:
+                    chunk_contents.append(f"[Missing content for chunk {chunk_id}]")
             
             return {
                 "chunk_ids": chunk_ids,
@@ -2660,7 +2917,9 @@ class KTRetriever:
             chunk_similarities = []
             for i, (chunk_id, content) in enumerate(zip(chunk_ids, chunk_contents)):
                 try:
-                    chunk_embed = torch.tensor(self.qa_encoder.encode(content)).float().to(self.device)
+                    # 对chunk内容也进行增强处理，提高匹配准确性
+                    enhanced_content = self._enhance_query_for_building_assets(content)
+                    chunk_embed = torch.tensor(self.qa_encoder.encode(enhanced_content)).float().to(self.device)
                     
                     similarity = F.cosine_similarity(question_embed, chunk_embed, dim=0).item()
                     similarity = max(0.0, similarity)  # Ensure non-negative
@@ -2692,3 +2951,115 @@ class KTRetriever:
         except Exception as e:
             logger.error(f"Error in chunk reranking: {str(e)}")
             return chunk_results
+    
+    def _collect_chunk_results(self, all_results: dict, scores: list, indices: list):
+        """收集chunk检索结果到合并字典中"""
+        for score, idx in zip(scores, indices):
+            if idx != -1 and idx in self.index_to_chunk_id:
+                chunk_id = self.index_to_chunk_id[idx]
+                # 使用最高分数（如果已存在）
+                if idx not in all_results or score > all_results[idx]['score']:
+                    all_results[idx] = {
+                        'chunk_id': chunk_id,
+                        'score': float(score)
+                    }
+    
+    def _generate_floor_synonym_queries(self, original_query: str) -> list:
+        """生成楼层同义词查询"""
+        synonym_queries = []
+        
+        # 楼层同义词映射
+        floor_mapping = {
+            "3F": ["3层", "三层"],
+            "3层": ["3F", "三层"], 
+            "三层": ["3F", "3层"],
+            "2F": ["2层", "二层"],
+            "2层": ["2F", "二层"],
+            "二层": ["2F", "2层"],
+            "1F": ["1层", "一层"],
+            "1层": ["1F", "一层"],
+            "一层": ["1F", "1层"],
+        }
+        
+        for floor, synonyms in floor_mapping.items():
+            if floor in original_query:
+                for synonym in synonyms:
+                    new_query = original_query.replace(floor, synonym)
+                    if new_query != original_query:
+                        synonym_queries.append(new_query)
+                break
+        
+        return synonym_queries
+    
+    def _rule_based_chunk_matching(self, query: str) -> dict:
+        """
+        基于规则的chunk匹配，解决嵌入模型语义匹配失败问题
+        """
+        matched_chunks = {}
+        
+        # 提取查询中的关键信息
+        building_pattern = r"([AB])栋"
+        floor_patterns = [
+            r"(\d+)F",      # 3F
+            r"(\d+)层",     # 3层  
+            r"([一二三四五六七八九十]+)层"  # 三层
+        ]
+        
+        import re
+        
+        # 提取建筑
+        building_match = re.search(building_pattern, query)
+        building = building_match.group(0) if building_match else None
+        
+        # 提取楼层
+        floor_info = None
+        for pattern in floor_patterns:
+            match = re.search(pattern, query)
+            if match:
+                floor_raw = match.group(1)
+                # 标准化楼层表示
+                if floor_raw.isdigit():
+                    floor_info = f"{floor_raw}层"
+                elif floor_raw in ["三", "3"]:
+                    floor_info = "3层"
+                elif floor_raw in ["二", "2"]:
+                    floor_info = "2层"
+                elif floor_raw in ["一", "1"]:
+                    floor_info = "1层"
+                else:
+                    floor_info = f"{floor_raw}层"
+                break
+        
+        logger.info(f"规则匹配 - 建筑: {building}, 楼层: {floor_info}")
+        
+        # 如果提取到建筑和楼层信息，在所有chunks中查找匹配
+        if building and floor_info:
+            for chunk_id, chunk_content in self.chunk2id.items():
+                # 检查chunk是否包含相关建筑和楼层信息
+                if self._chunk_matches_building_floor(chunk_content, building, floor_info):
+                    matched_chunks[chunk_id] = chunk_content
+                    logger.info(f"规则匹配成功: {chunk_id} - {chunk_content[:100]}...")
+        
+        return matched_chunks
+    
+    def _chunk_matches_building_floor(self, chunk_content: str, building: str, floor_info: str) -> bool:
+        """检查chunk是否匹配指定的建筑和楼层"""
+        # 检查建筑匹配
+        if building not in chunk_content:
+            return False
+        
+        # 楼层匹配 - 支持多种表示方式
+        floor_variants = []
+        if "3层" in floor_info:
+            floor_variants = ["3层", "3F", "三层"]
+        elif "2层" in floor_info:
+            floor_variants = ["2层", "2F", "二层"]
+        elif "1层" in floor_info:
+            floor_variants = ["1层", "1F", "一层"]
+        
+        # 检查任何一种楼层表示是否存在
+        for variant in floor_variants:
+            if variant in chunk_content:
+                return True
+        
+        return False
