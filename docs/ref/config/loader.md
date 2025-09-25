@@ -1,3 +1,0 @@
-# `Loader`
-
-::: utu.config.loader
