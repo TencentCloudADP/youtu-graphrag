@@ -1,0 +1,35 @@
+# MkDocs configuration for Youtu-GraphRAG
+site_name: Youtu-GraphRAG Docs
+site_description: Documentation for the Youtu-GraphRAG framework
+repo_name: TencentCloudADP/youtu-graphrag
+repo_url: https://github.com/TencentCloudADP/youtu-graphrag
+edit_uri: edit/main/docs/
+
+theme:
+  name: material
+  logo: assets/logo.svg
+
+plugins:
+  - search
+
+markdown_extensions:
+  - admonition
+  - toc:
+      permalink: true
+  - tables
+  - footnotes
+  - attr_list
+
+extra_css:
+  - stylesheets/extra.css
+
+extra:
+  analytics:
+    provider: google
+    property: G-1VYY79X6HL
+
+nav:
+  - Home: index.md
+  - Quickstart:
+      - Quickstart: quickstart.md
+      - Full Guide: fullguide.md
