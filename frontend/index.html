@@ -85,6 +85,42 @@
             overflow: hidden;
         }
 
+        .language-switcher {
+            position: absolute;
+            top: 20px;
+            right: 30px;
+            display: flex;
+            gap: 8px;
+            z-index: 10;
+        }
+
+        .lang-btn {
+            padding: 8px 16px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            background: rgba(255, 255, 255, 0.1);
+            color: rgba(255, 255, 255, 0.8);
+            border-radius: 20px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 14px;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+
+        .lang-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+            color: rgba(255, 255, 255, 0.95);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        }
+
+        .lang-btn.active {
+            background: linear-gradient(135deg, #6b73ff 0%, #9bb5ff 100%);
+            color: white;
+            border-color: rgba(255, 255, 255, 0.5);
+            box-shadow: 0 4px 15px rgba(107, 115, 255, 0.4);
+        }
+
         .header::before {
             content: '';
             position: absolute;
@@ -960,54 +996,58 @@
     <div class="container">
         <!-- Header -->
         <div class="header">
+            <div class="language-switcher">
+                <button class="lang-btn" onclick="switchLanguage('en')" id="lang-en">EN</button>
+                <button class="lang-btn" onclick="switchLanguage('zh')" id="lang-zh">中文</button>
+            </div>
             <div class="logo-container">
                 <img src="/assets/logo.png" alt="Youtu-GraphRAG Logo" class="logo-image">
                 <div class="logo">Youtu-GraphRAG</div>
             </div>
-            <div class="subtitle">✨ Vertically Unified Agents for Graph Retrieval-Augmented Complex Reasoning ✨</div>
+            <div class="subtitle" data-i18n="subtitle">✨ 图检索增强复杂推理的垂直统一智能体 ✨</div>
         </div>
 
         <!-- Navigation Tabs -->
         <div class="tabs">
-            <div class="tab active" onclick="switchTab('dashboard')">📊 Dashboard</div>
-            <div class="tab" onclick="switchTab('upload')">📤 Data Upload</div>
-            <div class="tab" onclick="switchTab('graph')">🕸️ Graph Visualization</div>
-            <div class="tab" onclick="switchTab('qa')">🤖 Q&A Interface</div>
+            <div class="tab active" onclick="switchTab('dashboard')" data-i18n="tab_dashboard">📊 仪表板</div>
+            <div class="tab" onclick="switchTab('upload')" data-i18n="tab_upload">📤 数据上传</div>
+            <div class="tab" onclick="switchTab('graph')" data-i18n="tab_graph">🕸️ 图可视化</div>
+            <div class="tab" onclick="switchTab('qa')" data-i18n="tab_qa">🤖 问答界面</div>
         </div>
 
         <!-- Dashboard Tab -->
         <div id="dashboard" class="tab-content active">
             <div class="card">
-                <h2>System Overview</h2>
+                <h2 data-i18n="system_overview">系统概览</h2>
                 <div class="grid">
                     <div class="stat-card">
                         <div class="stat-number" id="stat-datasets">0</div>
-                        <div class="stat-label">Datasets</div>
+                        <div class="stat-label" data-i18n="datasets">数据集</div>
                     </div>
                     <div class="stat-card">
                         <div class="stat-number" id="stat-graphs">0</div>
-                        <div class="stat-label">Constructed Graphs</div>
+                        <div class="stat-label" data-i18n="constructed_graphs">已构建图</div>
                     </div>
                     <div class="stat-card">
                         <div class="stat-number" id="stat-questions">0</div>
-                        <div class="stat-label">Questions Asked</div>
+                        <div class="stat-label" data-i18n="questions_asked">已提问题</div>
                     </div>
                     <div class="stat-card">
                         <div class="stat-number">
-                            <span class="status-badge status-ready">Connected</span>
+                            <span class="status-badge status-ready" data-i18n="connected">已连接</span>
                         </div>
-                        <div class="stat-label">System Status</div>
+                        <div class="stat-label" data-i18n="system_status">系统状态</div>
                     </div>
                 </div>
             </div>
 
             <div class="card">
-                <h2>Quick Actions</h2>
+                <h2 data-i18n="quick_actions">快速操作</h2>
                 <div class="quick-actions">
-                    <button class="btn" onclick="switchTab('upload')">📤 Upload Documents</button>
-                    <button class="btn" onclick="switchTab('graph')">🕸️ View Graph</button>
-                    <button class="btn" onclick="switchTab('qa')">🤖 Query</button>
-                    <button class="btn btn-secondary" onclick="refreshData()">🔄 Refresh</button>
+                    <button class="btn" onclick="switchTab('upload')" data-i18n="upload_documents">📤 上传文档</button>
+                    <button class="btn" onclick="switchTab('graph')" data-i18n="view_graph">🕸️ 查看图</button>
+                    <button class="btn" onclick="switchTab('qa')" data-i18n="query">🤖 查询</button>
+                    <button class="btn btn-secondary" onclick="refreshData()" data-i18n="refresh">🔄 刷新</button>
                 </div>
             </div>
         </div>
@@ -1015,25 +1055,25 @@
         <!-- Upload Tab -->
         <div id="upload" class="tab-content">
             <div class="card">
-                <h2>Upload Documents</h2>
+                <h2 data-i18n="upload_documents_title">上传文档</h2>
                 <div class="upload-area" id="uploadArea">
                     <div class="upload-icon">📁</div>
-                    <h3>Drag & Drop Files Here</h3>
-                    <p>or click to browse files</p>
-                    <p style="font-size: 12px; color: rgba(255,255,255,0.6); margin-top: 12px;">
-                        Currently supports: .json
+                    <h3 data-i18n="drag_drop_files">拖拽文件到此处</h3>
+                    <p data-i18n="or_click_browse">或点击浏览文件</p>
+                    <p style="font-size: 12px; color: rgba(255,255,255,0.6); margin-top: 12px;" data-i18n="supported_formats">
+                        当前支持格式：.json
                     </p>
                     <div style="margin-top: 20px; padding: 15px; background: rgba(255,255,255,0.1); border-radius: 10px; text-align: left; font-size: 11px; color: rgba(255,255,255,0.8);">
-                        <div style="font-weight: 600; margin-bottom: 8px;">📄 Sample Format (.json):</div>
-                        <pre style="margin: 0; font-family: 'JetBrains Mono', 'Monaco', 'Menlo', 'Ubuntu Mono', monospace; background: rgba(0,0,0,0.3); padding: 8px; border-radius: 5px; overflow-x: auto;">
+                        <div style="font-weight: 600; margin-bottom: 8px;" data-i18n="sample_format">📄 示例格式 (.json)：</div>
+                        <pre style="margin: 0; font-family: 'JetBrains Mono', 'Monaco', 'Menlo', 'Ubuntu Mono', monospace; background: rgba(0,0,0,0.3); padding: 8px; border-radius: 5px; overflow-x: auto;" id="sample-format-content">
   [
     {
-      "title": "Sample doc1",
-      "text": "This is a sample document content..."
+      "title": "示例文档1",
+      "text": "这是示例文档内容..."
     },
     {
-      "title": "Sample doc2",
-      "text": "This is a sample document content..."
+      "title": "示例文档2", 
+      "text": "这是示例文档内容..."
     }
   ]
 </pre>
@@ -1044,20 +1084,20 @@
                 <div id="fileList" class="file-list hidden"></div>
                 
                 <div style="margin-top: 20px;">
-                    <button class="btn" id="uploadBtn" disabled onclick="uploadFiles()">Upload Files</button>
-                    <button class="btn btn-secondary" onclick="clearFiles()">Clear</button>
+                    <button class="btn" id="uploadBtn" disabled onclick="uploadFiles()" data-i18n="upload_files">上传文件</button>
+                    <button class="btn btn-secondary" onclick="clearFiles()" data-i18n="clear">清除</button>
                 </div>
                 
                 <div id="uploadProgress" class="hidden">
                     <div class="progress-bar">
                         <div class="progress-fill" id="progressFill"></div>
                     </div>
-                    <div id="progressText">Uploading...</div>
+                    <div id="progressText" data-i18n="uploading">上传中...</div>
                 </div>
             </div>
 
             <div class="card">
-                <h2>Available Datasets</h2>
+                <h2 data-i18n="available_datasets">可用数据集</h2>
                 <div id="datasetsList"></div>
             </div>
         </div>
@@ -1065,11 +1105,11 @@
         <!-- Graph Tab -->
         <div id="graph" class="tab-content">
             <div class="card">
-                <h2>Knowledge Tree Visualization</h2>
+                <h2 data-i18n="knowledge_tree_visualization">知识树可视化</h2>
                 <div class="input-group">
-                    <label>Dataset:</label>
+                    <label data-i18n="dataset_label">数据集：</label>
                     <select class="select" id="graphDataset" onchange="loadGraphData()">
-                        <option value="">Select a dataset...</option>
+                        <option value="" data-i18n="select_dataset">选择数据集...</option>
                     </select>
                 </div>
                 <div class="chart-container" id="graphChart"></div>
@@ -1079,34 +1119,30 @@
         <!-- Q&A Tab -->
         <div id="qa" class="tab-content">
             <div class="card">
-                <h2>Query Panel</h2>
+                <h2 data-i18n="query_panel">查询面板</h2>
                 <div class="input-group">
-                    <label>Dataset:</label>
+                    <label data-i18n="dataset_label">数据集：</label>
                     <select class="select" id="qaDataset">
-                        <option value="">Select a dataset...</option>
+                        <option value="" data-i18n="select_dataset">选择数据集...</option>
                     </select>
                 </div>
                 <div class="input-group">
-                    <label>Query:</label>
-                    <!-- <textarea class="textarea" id="questionInput" placeholder="Demo Queston: When was the person who Messi's goals in Copa del Rey compared to get signed by Barcelona?"></textarea> -->
-                    <textarea class="textarea" id="questionInput" placeholder="Enter your question here...">When was the person who Messi's goals in Copa del Rey compared to get signed by Barcelona?</textarea>
+                    <label data-i18n="query_label">查询：</label>
+                    <textarea class="textarea" id="questionInput" data-i18n-placeholder="enter_question">梅西在国王杯的进球数与谁相比较的那个人是什么时候被巴塞罗那签约的？</textarea>
                 </div>
-                <button class="btn" onclick="askQuestion()" id="askBtn">Ask Question</button>
+                <button class="btn" onclick="askQuestion()" id="askBtn" data-i18n="ask_question">提问</button>
                 
                 <div id="qaLoading" class="loading">
                     <div class="spinner"></div>
-                    <div>Processing your question...</div>
+                    <div data-i18n="processing_question">正在处理您的问题...</div>
                 </div>
                 
                 <div id="answerSection" class="hidden">
-                    <h3>Answer:</h3>
+                    <h3 data-i18n="answer">答案：</h3>
                     <div class="answer-content" id="answerContent"></div>
                     
                     <!-- Retrieval Details Container -->
                     <div id="retrievalDetails" class="retrieval-details" style="display: none;"></div>
-                    
-                    <!-- <h3>Query Analysis:</h3>
-                    <div class="chart-container" id="queryChart"></div> -->
                 </div>
             </div>
         </div>
@@ -1123,9 +1159,158 @@
         let graphChart = null;
         // let queryChart = null;
         let questionCount = 0;
+        let currentLanguage = 'zh'; // 默认中文
 
         // API base URL
         const API_BASE = '';
+
+        // 国际化文本
+        const i18nTexts = {
+            zh: {
+                subtitle: "✨ 图检索增强复杂推理的垂直统一智能体 ✨",
+                tab_dashboard: "📊 仪表板",
+                tab_upload: "📤 数据上传", 
+                tab_graph: "🕸️ 图可视化",
+                tab_qa: "🤖 问答界面",
+                system_overview: "系统概览",
+                datasets: "数据集",
+                constructed_graphs: "已构建图",
+                questions_asked: "已提问题",
+                connected: "已连接",
+                system_status: "系统状态",
+                quick_actions: "快速操作",
+                upload_documents: "📤 上传文档",
+                view_graph: "🕸️ 查看图",
+                query: "🤖 查询",
+                refresh: "🔄 刷新",
+                upload_documents_title: "上传文档",
+                drag_drop_files: "拖拽文件到此处",
+                or_click_browse: "或点击浏览文件",
+                supported_formats: "当前支持格式：.json",
+                upload_files: "上传文件",
+                clear: "清除",
+                uploading: "上传中...",
+                available_datasets: "可用数据集",
+                knowledge_tree_visualization: "知识树可视化",
+                dataset_label: "数据集：",
+                select_dataset: "选择数据集...",
+                query_panel: "查询面板",
+                query_label: "查询：",
+                enter_question: "在此输入您的问题...",
+                ask_question: "提问",
+                processing_question: "正在处理您的问题...",
+                answer: "答案：",
+                sample_format: "📄 示例格式 (.json)："
+            },
+            en: {
+                subtitle: "✨ Vertically Unified Agents for Graph Retrieval-Augmented Complex Reasoning ✨",
+                tab_dashboard: "📊 Dashboard",
+                tab_upload: "📤 Data Upload",
+                tab_graph: "🕸️ Graph Visualization", 
+                tab_qa: "🤖 Q&A Interface",
+                system_overview: "System Overview",
+                datasets: "Datasets",
+                constructed_graphs: "Constructed Graphs",
+                questions_asked: "Questions Asked",
+                connected: "Connected",
+                system_status: "System Status",
+                quick_actions: "Quick Actions",
+                upload_documents: "📤 Upload Documents",
+                view_graph: "🕸️ View Graph",
+                query: "🤖 Query",
+                refresh: "🔄 Refresh",
+                upload_documents_title: "Upload Documents",
+                drag_drop_files: "Drag & Drop Files Here",
+                or_click_browse: "or click to browse files",
+                supported_formats: "Currently supports: .json",
+                upload_files: "Upload Files",
+                clear: "Clear",
+                uploading: "Uploading...",
+                available_datasets: "Available Datasets",
+                knowledge_tree_visualization: "Knowledge Tree Visualization",
+                dataset_label: "Dataset:",
+                select_dataset: "Select a dataset...",
+                query_panel: "Query Panel",
+                query_label: "Query:",
+                enter_question: "Enter your question here...",
+                ask_question: "Ask Question",
+                processing_question: "Processing your question...",
+                answer: "Answer:",
+                sample_format: "📄 Sample Format (.json):"
+            }
+        };
+
+        // 语言切换函数
+        function switchLanguage(lang) {
+            currentLanguage = lang;
+            
+            // 更新按钮状态
+            document.querySelectorAll('.lang-btn').forEach(btn => btn.classList.remove('active'));
+            document.getElementById(`lang-${lang}`).classList.add('active');
+            
+            // 更新所有带有 data-i18n 属性的元素
+            document.querySelectorAll('[data-i18n]').forEach(element => {
+                const key = element.getAttribute('data-i18n');
+                if (i18nTexts[lang] && i18nTexts[lang][key]) {
+                    element.textContent = i18nTexts[lang][key];
+                }
+            });
+
+            // 更新 placeholder 文本
+            document.querySelectorAll('[data-i18n-placeholder]').forEach(element => {
+                const key = element.getAttribute('data-i18n-placeholder');
+                if (i18nTexts[lang] && i18nTexts[lang][key]) {
+                    element.placeholder = i18nTexts[lang][key];
+                }
+            });
+
+            // 更新示例格式内容
+            const sampleFormatContent = document.getElementById('sample-format-content');
+            if (sampleFormatContent) {
+                if (lang === 'zh') {
+                    sampleFormatContent.textContent = `  [
+    {
+      "title": "示例文档1",
+      "text": "这是示例文档内容..."
+    },
+    {
+      "title": "示例文档2", 
+      "text": "这是示例文档内容..."
+    }
+  ]`;
+                } else {
+                    sampleFormatContent.textContent = `  [
+    {
+      "title": "Sample doc1",
+      "text": "This is a sample document content..."
+    },
+    {
+      "title": "Sample doc2",
+      "text": "This is a sample document content..."
+    }
+  ]`;
+                }
+            }
+
+            // 更新问题输入框的默认内容
+            const questionInput = document.getElementById('questionInput');
+            if (questionInput) {
+                if (lang === 'zh') {
+                    questionInput.value = "梅西在国王杯的进球数与谁相比较的那个人是什么时候被巴塞罗那签约的？";
+                } else {
+                    questionInput.value = "When was the person who Messi's goals in Copa del Rey compared to get signed by Barcelona?";
+                }
+            }
+
+            // 保存语言设置到本地存储
+            localStorage.setItem('language', lang);
+        }
+
+        // 初始化语言设置
+        function initializeLanguage() {
+            const savedLang = localStorage.getItem('language') || 'zh';
+            switchLanguage(savedLang);
+        }
 
         // Initialize the app
         document.addEventListener('DOMContentLoaded', function() {
@@ -1134,6 +1319,7 @@
         });
 
         function initializeApp() {
+            initializeLanguage();
             refreshData();
             console.log('Youtu-GraphRAG initialized');
         }
