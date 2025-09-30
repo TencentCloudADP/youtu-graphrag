@@ -219,12 +219,12 @@ class DualFAISSRetriever:
             # Get outgoing edges from neighbor
             for _, target, edge_data in self.graph.out_edges(neighbor, data=True):
                 if 'relation' in edge_data and target in self.node_id_to_embedding:
-                    neighbor_triples.append((neighbor, target, edge_data['relation']))
+                    neighbor_triples.append((neighbor, edge_data['relation'], target))
             
             # Get incoming edges to neighbor
             for source, _, edge_data in self.graph.in_edges(neighbor, data=True):
                 if 'relation' in edge_data and source in self.node_id_to_embedding:
-                    neighbor_triples.append((source, neighbor, edge_data['relation']))
+                    neighbor_triples.append((source, edge_data['relation'], neighbor))
                     
         return neighbor_triples
     
@@ -1346,7 +1346,7 @@ class DualFAISSRetriever:
             top_k: Maximum number of triples to return
             
         Returns:
-            List of (head, tail, relation, score) tuples with scores above threshold, limited to top_k
+            List of (head, relation, tail, score) tuples with scores above threshold, limited to top_k
         """
         
         scored_triples = []
