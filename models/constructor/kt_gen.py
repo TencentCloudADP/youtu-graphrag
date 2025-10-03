@@ -124,22 +124,49 @@ class KTBuilder:
     def _get_construction_prompt(self, chunk: str) -> str:
         """Get the appropriate construction prompt based on dataset name and mode (agent/noagent)."""
         recommend_schema = json.dumps(self.schema, ensure_ascii=False)
-        
-        # Base prompt type mapping
-        prompt_type_map = {
-            "novel": "novel",
-            "novel_eng": "novel_eng"
-        }
-        
-        base_prompt_type = prompt_type_map.get(self.dataset_name, "general")
-        
-        # Add agent suffix if in agent mode
-        if self.mode == "agent":
-            prompt_type = f"{base_prompt_type}_agent"
+
+        # Use language detection for automatic prompt selection
+        from utils.language_detection import detect_language_from_dataset_name
+        language = detect_language_from_dataset_name(self.dataset_name)
+
+        if language == 'zh':
+            # Try Chinese-specific prompts first
+            try:
+                prompt_type = "chinese"
+                if self.mode == "agent":
+                    prompt_type = f"{prompt_type}_agent"
+                return self.config.get_prompt_formatted("construction", prompt_type, schema=recommend_schema, chunk=chunk)
+            except ValueError:
+                # Fall back to existing logic
+                prompt_type_map = {
+                    "novel": "novel_chs",
+                    "novel_eng": "novel_eng"
+                }
+                base_prompt_type = prompt_type_map.get(self.dataset_name, "general")
+                if self.mode == "agent":
+                    prompt_type = f"{base_prompt_type}_agent"
+                else:
+                    prompt_type = base_prompt_type
+                return self.config.get_prompt_formatted("construction", prompt_type, schema=recommend_schema, chunk=chunk)
         else:
-            prompt_type = base_prompt_type
-        
-        return self.config.get_prompt_formatted("construction", prompt_type, schema=recommend_schema, chunk=chunk)
+            # Try English-specific prompts first
+            try:
+                prompt_type = "english"
+                if self.mode == "agent":
+                    prompt_type = f"{prompt_type}_agent"
+                return self.config.get_prompt_formatted("construction", prompt_type, schema=recommend_schema, chunk=chunk)
+            except ValueError:
+                # Fall back to existing logic
+                prompt_type_map = {
+                    "novel": "novel_chs",
+                    "novel_eng": "novel_eng"
+                }
+                base_prompt_type = prompt_type_map.get(self.dataset_name, "general")
+                if self.mode == "agent":
+                    prompt_type = f"{base_prompt_type}_agent"
+                else:
+                    prompt_type = base_prompt_type
+                return self.config.get_prompt_formatted("construction", prompt_type, schema=recommend_schema, chunk=chunk)
     
     def _validate_and_parse_llm_response(self, prompt: str, llm_response: str) -> dict:
         """Validate and parse LLM response, returning None if invalid."""

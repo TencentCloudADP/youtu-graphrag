@@ -121,10 +121,23 @@ class EvaluationConfig:
     enable_evaluation: bool = True
     metrics: list = None
     save_detailed_results: bool = True
-    
+
     def __post_init__(self):
         if self.metrics is None:
             self.metrics = ["accuracy", "precision", "recall", "f1"]
+
+@dataclass
+class LanguageConfig:
+    """Language detection and spacy model configuration"""
+    enable_auto_detection: bool = True
+    default_language: str = "en"
+    override_models: Dict[str, str] = None
+    chinese_model: str = "zh_core_web_lg"
+    english_model: str = "en_core_web_lg"
+
+    def __post_init__(self):
+        if self.override_models is None:
+            self.override_models = {}
 
 class ConfigManager:
     """
@@ -152,6 +165,7 @@ class ConfigManager:
         self.output: Optional[OutputConfig] = None
         self.performance: Optional[PerformanceConfig] = None
         self.evaluation: Optional[EvaluationConfig] = None
+        self.language: Optional[LanguageConfig] = None
 
         self.load_config()
     
@@ -217,6 +231,9 @@ class ConfigManager:
         
         evaluation_data = self.config_data.get("evaluation", {})
         self.evaluation = EvaluationConfig(**evaluation_data)
+
+        language_data = self.config_data.get("language", {})
+        self.language = LanguageConfig(**language_data)
     
     def _validate_config(self) -> None:
         """Validate the loaded configuration."""
@@ -225,20 +242,32 @@ class ConfigManager:
                 logger.warning(f"Corpus path not found for {dataset_name}: {dataset_config.corpus_path}")
             if not os.path.exists(dataset_config.schema_path):
                 logger.warning(f"Schema path not found for {dataset_name}: {dataset_config.schema_path}")
-        
+
         valid_modes = ["agent", "noagent"]
         if self.triggers.mode not in valid_modes:
             raise ValueError(f"Invalid mode: {self.triggers.mode}. Must be one of {valid_modes}")
-        
+
         if self.construction.mode not in ["agent", "basic"]:
             raise ValueError(f"Invalid construction mode: {self.construction.mode}")
-        
+
         # Validate numerical parameters
         if self.retrieval.top_k <= 0:
             raise ValueError("top_k must be positive")
-        
+
         if self.tree_comm.struct_weight < 0 or self.tree_comm.struct_weight > 1:
             raise ValueError("struct_weight must be between 0 and 1")
+
+        # Validate language configuration
+        if self.language:
+            valid_languages = ["en", "zh"]
+            if self.language.default_language not in valid_languages:
+                logger.warning(f"Invalid default language: {self.language.default_language}. Must be one of {valid_languages}")
+
+            # Validate override models if specified
+            for dataset_name, model_name in self.language.override_models.items():
+                logger.info(f"Model override for dataset '{dataset_name}': {model_name}")
+
+        logger.info("Configuration validation completed successfully")
     
     def get_dataset_config(self, dataset_name: str) -> DatasetConfig:
         """Get configuration for a specific dataset."""
@@ -293,6 +322,7 @@ class ConfigManager:
             "output": asdict(self.output),
             "performance": asdict(self.performance),
             "evaluation": asdict(self.evaluation),
+            "language": asdict(self.language),
         }
     
     def create_output_directories(self) -> None:
@@ -329,13 +359,46 @@ def get_config(config_path: Optional[str] = None) -> ConfigManager:
 def reload_config(config_path: Optional[str] = None) -> ConfigManager:
     """
     Reload the configuration.
-    
+
     Args:
         config_path: Path to configuration file
-        
+
     Returns:
         New ConfigManager instance
     """
     global _config_instance
     _config_instance = ConfigManager(config_path)
     return _config_instance
+
+def get_spacy_model_for_dataset_config(dataset_name: str, config: ConfigManager = None) -> str:
+    """
+    Get spacy model name for dataset using configuration.
+
+    Args:
+        dataset_name: Name of the dataset
+        config: ConfigManager instance (optional)
+
+    Returns:
+        str: Spacy model name
+    """
+    if config and config.language and config.language.override_models:
+        # Check if there's a specific override for this dataset
+        if dataset_name in config.language.override_models:
+            logger.info(f"Using overridden spacy model for dataset '{dataset_name}': {config.language.override_models[dataset_name]}")
+            return config.language.override_models[dataset_name]
+
+    # Use automatic detection if enabled or no config provided
+    if not config or config.language.enable_auto_detection:
+        from utils.language_detection import get_spacy_model_for_dataset
+        return get_spacy_model_for_dataset(dataset_name)
+
+    # Use default language from config
+    if config and config.language:
+        default_lang = config.language.default_language
+        if default_lang == 'zh':
+            return config.language.chinese_model
+        else:
+            return config.language.english_model
+
+    # Fallback to English
+    return 'en_core_web_lg'
