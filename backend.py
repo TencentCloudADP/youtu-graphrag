@@ -347,7 +347,7 @@ async def construct_graph(request: GraphConstructionRequest, client_id: str = "d
             config=config
         )
         
-        await send_progress_update(client_id, "construction", 20, "开始实体关系抽取...")
+        await send_progress_update(client_id, "construction", 20, "Starting entity-relation extraction...")
         
         # Build knowledge graph
         def build_graph_sync():
@@ -359,18 +359,18 @@ async def construct_graph(request: GraphConstructionRequest, client_id: str = "d
         # Run graph construction without simulated progress updates
         knowledge_graph = await loop.run_in_executor(None, build_graph_sync)
         
-        await send_progress_update(client_id, "construction", 95, "准备可视化数据...")
+        await send_progress_update(client_id, "construction", 95, "Preparing visualization data...")
         # Load constructed graph for visualization
         graph_path = f"output/graphs/{dataset_name}_new.json"
         graph_vis_data = await prepare_graph_visualization(graph_path)
         
-        await send_progress_update(client_id, "construction", 100, "图构建完成!")
+        await send_progress_update(client_id, "construction", 100, "Graph construction completed!")
         # Notify completion via WebSocket
         try:
             await manager.send_message({
                 "type": "complete",
                 "stage": "construction",
-                "message": "图构建完成!",
+                "message": "Graph construction completed!",
                 "timestamp": datetime.now().isoformat()
             }, client_id)
         except Exception as _e:
@@ -383,12 +383,12 @@ async def construct_graph(request: GraphConstructionRequest, client_id: str = "d
         )
     
     except Exception as e:
-        await send_progress_update(client_id, "construction", 0, f"构建失败: {str(e)}")
+        await send_progress_update(client_id, "construction", 0, f"Construction failed: {str(e)}")
         try:
             await manager.send_message({
                 "type": "error",
                 "stage": "construction",
-                "message": f"构建失败: {str(e)}",
+                "message": f"Construction failed: {str(e)}",
                 "timestamp": datetime.now().isoformat()
             }, client_id)
         except Exception as _e:
@@ -557,7 +557,7 @@ async def ask_question(request: QuestionRequest, client_id: str = "default"):
         dataset_name = request.dataset_name
         question = request.question
 
-        await send_progress_update(client_id, "retrieval", 10, "初始化检索系统 (agent 模式)...")
+        await send_progress_update(client_id, "retrieval", 10, "Initializing retrieval system (agent mode)...")
 
         graph_path = f"output/graphs/{dataset_name}_new.json"
         schema_path = get_schema_path_for_dataset(dataset_name)
@@ -578,11 +578,11 @@ async def ask_question(request: QuestionRequest, client_id: str = "default"):
             recall_paths=config.retrieval.recall_paths,
             schema_path=schema_path,
             top_k=config.retrieval.top_k_filter,
-            mode="agent",  # 强制 agent 模式
+            mode="agent",  # force agent mode
             config=config
         )
 
-        await send_progress_update(client_id, "retrieval", 40, "构建索引...")
+        await send_progress_update(client_id, "retrieval", 40, "Building indices...")
         loop = asyncio.get_running_loop()
         # Offload index building to thread executor to avoid blocking event loop
         await loop.run_in_executor(None, kt_retriever.build_indices)
@@ -601,14 +601,14 @@ async def ask_question(request: QuestionRequest, client_id: str = "default"):
         except Exception as _e:
             logger.debug(f"QA start ws send failed: {_e}")
 
-        # Helper functions (复用 main.py 逻辑的精简版)
+        # Helper functions (reuse a simplified version of main.py logic)
         def _dedup(items):
             return list({x: None for x in items}.keys())
         def _merge_chunk_contents(ids, mapping):
             return [mapping.get(i, f"[Missing content for chunk {i}]") for i in ids]
 
         # Step 1: decomposition
-        await send_progress_update(client_id, "retrieval", 50, "问题分解...")
+        await send_progress_update(client_id, "retrieval", 50, "Decomposing question...")
         try:
             # Offload decomposition to executor
             loop = asyncio.get_running_loop()
@@ -638,7 +638,7 @@ async def ask_question(request: QuestionRequest, client_id: str = "default"):
         all_chunk_contents: Dict[str, str] = {}
 
         # Step 2: initial retrieval for each sub-question
-        await send_progress_update(client_id, "retrieval", 65, "初始检索...")
+        await send_progress_update(client_id, "retrieval", 65, "Initial retrieval...")
         import time as _time
         for idx, sq in enumerate(sub_questions):
             sq_text = sq.get("sub-question", question)
@@ -693,7 +693,7 @@ async def ask_question(request: QuestionRequest, client_id: str = "default"):
                 logger.debug(f"QA update ws send failed for sub_question {idx+1}: {_e}")
 
         # Step 3: IRCoT iterative refinement
-        await send_progress_update(client_id, "retrieval", 75, "迭代推理...")
+        await send_progress_update(client_id, "retrieval", 75, "Iterative reasoning...")
         try:
             await manager.send_message({
                 "type": "qa_update",
@@ -782,7 +782,7 @@ Your reasoning:
                 final_answer = initial_answer or reasoning
                 break
             current_query = new_query
-            await send_progress_update(client_id, "retrieval", min(90, 75 + step * 5), f"迭代检索 Step {step}...")
+            await send_progress_update(client_id, "retrieval", min(90, 75 + step * 5), f"Iterative retrieval step {step}...")
             try:
                 def _run_more_retrieval():
                     return kt_retriever.process_retrieval_results(current_query, top_k=config.retrieval.top_k_filter)
@@ -808,7 +808,7 @@ Your reasoning:
         final_chunk_ids = list(set(all_chunk_ids))
         final_chunk_contents = _merge_chunk_contents(final_chunk_ids, all_chunk_contents)[:10]
 
-        await send_progress_update(client_id, "retrieval", 100, "答案生成完成!")
+        await send_progress_update(client_id, "retrieval", 100, "Answer generation completed!")
 
         # Notify frontend that QA process is complete with a compact summary
         try:
@@ -844,13 +844,13 @@ Your reasoning:
             visualization_data=visualization_data
         )
     except Exception as e:
-        await send_progress_update(client_id, "retrieval", 0, f"问答处理失败: {str(e)}")
+        await send_progress_update(client_id, "retrieval", 0, f"Question answering failed: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
 def prepare_subquery_visualization(sub_questions: List[Dict], reasoning_steps: List[Dict]) -> Dict:
     """Prepare subquery visualization"""
-    nodes = [{"id": "original", "name": "原始问题", "category": "question", "symbolSize": 40}]
+    nodes = [{"id": "original", "name": "Original Question", "category": "question", "symbolSize": 40}]
     links = []
     
     for i, sub_q in enumerate(sub_questions):
@@ -861,7 +861,7 @@ def prepare_subquery_visualization(sub_questions: List[Dict], reasoning_steps: L
             "category": "sub_question",
             "symbolSize": 30
         })
-        links.append({"source": "original", "target": sub_id, "name": "分解为"})
+        links.append({"source": "original", "target": sub_id, "name": "decomposed to"})
     
     return {
         "nodes": nodes,
@@ -1059,22 +1059,22 @@ async def reconstruct_dataset(dataset_name: str, client_id: str = "default"):
             else:
                 raise HTTPException(status_code=404, detail="Dataset not found")
         
-        await send_progress_update(client_id, "reconstruction", 5, "开始重新构图...")
+        await send_progress_update(client_id, "reconstruction", 5, "Starting reconstruction...")
         
         # Delete existing graph file
         graph_path = f"output/graphs/{dataset_name}_new.json"
         if os.path.exists(graph_path):
             os.remove(graph_path)
-            await send_progress_update(client_id, "reconstruction", 15, "已删除旧图谱文件...")
+            await send_progress_update(client_id, "reconstruction", 15, "Old graph file deleted...")
         
         # Delete existing cache files
         cache_dir = f"retriever/faiss_cache_new/{dataset_name}"
         if os.path.exists(cache_dir):
             import shutil
             shutil.rmtree(cache_dir)
-            await send_progress_update(client_id, "reconstruction", 25, "已清理缓存文件...")
+            await send_progress_update(client_id, "reconstruction", 25, "Cache files cleared...")
         
-        await send_progress_update(client_id, "reconstruction", 35, "重新初始化图构建器...")
+        await send_progress_update(client_id, "reconstruction", 35, "Reinitializing graph builder...")
         
         # Initialize config
         global config
@@ -1092,7 +1092,7 @@ async def reconstruct_dataset(dataset_name: str, client_id: str = "default"):
             config=config
         )
         
-        await send_progress_update(client_id, "reconstruction", 50, "开始重新构建图谱...")
+        await send_progress_update(client_id, "reconstruction", 50, "Rebuilding knowledge graph...")
         
         # Build knowledge graph
         def build_graph_sync():
@@ -1104,13 +1104,13 @@ async def reconstruct_dataset(dataset_name: str, client_id: str = "default"):
         # Run graph reconstruction without simulated progress updates
         knowledge_graph = await loop.run_in_executor(None, build_graph_sync)
         
-        await send_progress_update(client_id, "reconstruction", 100, "图谱重构完成!")
+        await send_progress_update(client_id, "reconstruction", 100, "Graph reconstruction completed!")
         # Notify completion via WebSocket
         try:
             await manager.send_message({
                 "type": "complete",
                 "stage": "reconstruction",
-                "message": "图谱重构完成!",
+                "message": "Graph reconstruction completed!",
                 "timestamp": datetime.now().isoformat()
             }, client_id)
         except Exception as _e:
@@ -1123,12 +1123,12 @@ async def reconstruct_dataset(dataset_name: str, client_id: str = "default"):
         }
     
     except Exception as e:
-        await send_progress_update(client_id, "reconstruction", 0, f"重构失败: {str(e)}")
+        await send_progress_update(client_id, "reconstruction", 0, f"Reconstruction failed: {str(e)}")
         try:
             await manager.send_message({
                 "type": "error",
                 "stage": "reconstruction",
-                "message": f"重构失败: {str(e)}",
+                "message": f"Reconstruction failed: {str(e)}",
                 "timestamp": datetime.now().isoformat()
             }, client_id)
         except Exception as _e:
@@ -1144,11 +1144,11 @@ async def get_graph_data(dataset_name: str):
         # Return demo data
         return {
             "nodes": [
-                {"id": "node1", "name": "示例实体1", "category": "person", "value": 5, "symbolSize": 25},
-                {"id": "node2", "name": "示例实体2", "category": "location", "value": 3, "symbolSize": 20},
+                {"id": "node1", "name": "Example Entity 1", "category": "person", "value": 5, "symbolSize": 25},
+                {"id": "node2", "name": "Example Entity 2", "category": "location", "value": 3, "symbolSize": 20},
             ],
             "links": [
-                {"source": "node1", "target": "node2", "name": "位于", "value": 1}
+                {"source": "node1", "target": "node2", "name": "located_in", "value": 1}
             ],
             "categories": [
                 {"name": "person", "itemStyle": {"color": "#ff6b6b"}},
