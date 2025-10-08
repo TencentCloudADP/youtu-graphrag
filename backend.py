@@ -5,6 +5,7 @@ Integrates real GraphRAG functionality with a simple interface
 """
 
 import os
+import re
 import sys
 import json
 import asyncio
@@ -722,7 +723,6 @@ async def ask_question(request: QuestionRequest, client_id: str = "default"):
         thoughts.append(f"Initial: {initial_answer[:200]}")
         final_answer = initial_answer
 
-        import re as _re
         for step in range(1, max_steps + 1):
             loop_triples = _dedup(list(all_triples))
             loop_chunk_ids = list(set(all_chunk_ids))
@@ -771,7 +771,7 @@ Your reasoning:
             except Exception as _e:
                 logger.debug(f"QA update ws send failed for ircot step {step}: {_e}")
             if "So the answer is:" in reasoning:
-                m = _re.search(r"So the answer is:\s*(.*)", reasoning, flags=_re.IGNORECASE | _re.DOTALL)
+                m = re.search(r"So the answer is:\s*(.*)", reasoning, flags=re.IGNORECASE | re.DOTALL)
                 final_answer = m.group(1).strip() if m else reasoning
                 break
             if "The new query is:" not in reasoning:
