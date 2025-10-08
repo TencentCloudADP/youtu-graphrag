@@ -1,4 +1,0 @@
-# Minimal requirements to build docs locally and on CI
-mkdocs>=1.6
-# Material theme and richer features
-mkdocs-material>=9.5
