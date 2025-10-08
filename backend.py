@@ -313,12 +313,12 @@ async def construct_graph(request: GraphConstructionRequest, client_id: str = "d
             raise HTTPException(status_code=503, detail="GraphRAG components not available. Please install or configure them.")
         dataset_name = request.dataset_name
         
-        await send_progress_update(client_id, "construction", 2, "清理旧缓存文件...")
+        await send_progress_update(client_id, "construction", 2, "Cleaning old cache files...")
         
         # Clear all cache files before construction
         await clear_cache_files(dataset_name)
         
-        await send_progress_update(client_id, "construction", 5, "初始化图构建器...")
+        await send_progress_update(client_id, "construction", 5, "Initializing graph builder...")
         
         # Get dataset paths
         corpus_path = f"data/uploaded/{dataset_name}/corpus.json" 
@@ -332,7 +332,7 @@ async def construct_graph(request: GraphConstructionRequest, client_id: str = "d
         if not os.path.exists(corpus_path):
             raise HTTPException(status_code=404, detail="Dataset not found")
         
-        await send_progress_update(client_id, "construction", 10, "加载配置和语料库...")
+        await send_progress_update(client_id, "construction", 10, "Loading configuration and corpus...")
         
         # Initialize config
         global config
