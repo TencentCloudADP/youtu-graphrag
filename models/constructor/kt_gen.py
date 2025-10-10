@@ -33,7 +33,7 @@ class KTBuilder:
 
     def load_schema(self, schema_path) -> Dict[str, Any]:
         try:
-            with open(schema_path) as f:
+            with open(schema_path, 'r', encoding='utf-8') as f:
                 schema = json.load(f)
                 return schema
         except FileNotFoundError:
