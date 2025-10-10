@@ -252,9 +252,3 @@ curl -v http://localhost:8000  # サービスが正常に動作しているか�
       url={https://arxiv.org/abs/2508.19855}, 
 }
 ```
-
----
-
-## Star History
-
-[![Star History Chart](https://api.star-history.com/svg?repos=TencentCloudADP/youtu-graphrag&type=Date)](https://www.star-history.com/#TencentCloudADP/youtu-graphrag&Date)
