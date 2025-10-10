@@ -149,6 +149,44 @@ async def send_progress_update(client_id: str, stage: str, progress: int, messag
         "timestamp": datetime.now().isoformat()
     }, client_id)
 
+# -------- Encoding detection helpers --------
+def _detect_encoding_from_bytes(data: bytes) -> Optional[str]:
+    """Detect encoding using chardet if available; return lower-cased encoding name or None."""
+    try:
+        import chardet  # type: ignore
+        result = chardet.detect(data) or {}
+        enc = result.get("encoding")
+        if enc:
+            return enc.lower()
+    except Exception:
+        pass
+    return None
+
+def decode_bytes_with_detection(data: bytes) -> str:
+    """Decode bytes to string with encoding detection and robust fallbacks.
+    Order: detected -> utf-8/utf-8-sig -> common Chinese encodings -> utf-16 variants -> latin-1 -> replace.
+    """
+    candidates = []
+    detected = _detect_encoding_from_bytes(data)
+    if detected:
+        candidates.append(detected)
+    candidates.extend([
+        "utf-8", "utf-8-sig", "gb18030", "gbk", "big5",
+        "utf-16", "utf-16le", "utf-16be", "latin-1"
+    ])
+    # De-duplicate while preserving order
+    tried = set()
+    for enc in candidates:
+        if enc in tried or not enc:
+            continue
+        tried.add(enc)
+        try:
+            return data.decode(enc)
+        except Exception:
+            continue
+    # Last resort
+    return data.decode("utf-8", errors="replace")
+
 async def clear_cache_files(dataset_name: str):
     """Clear all cache files for a dataset before graph construction"""
     try:
@@ -249,33 +287,39 @@ async def upload_files(files: List[UploadFile] = File(...), client_id: str = "de
         for i, file in enumerate(files):
             file_path = os.path.join(upload_dir, file.filename)
             with open(file_path, "wb") as buffer:
-                content = await file.read()
-                buffer.write(content)
+                content_bytes = await file.read()
+                buffer.write(content_bytes)
             
-            # Process file content
-            if file.filename.endswith('.txt'):
-                with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
-                    content = f.read()
+            # Process file content using encoding detection
+            filename_lower = (file.filename or "").lower()
+            if filename_lower.endswith('.txt'):
+                text = decode_bytes_with_detection(content_bytes)
                 corpus_data.append({
                     "title": file.filename,
-                    "text": content
+                    "text": text
                 })
-            elif file.filename.endswith('.json'):
+            elif filename_lower.endswith('.json'):
                 try:
-                    with open(file_path, 'r', encoding='utf-8') as f:
-                        data = json.load(f)
-                        if isinstance(data, list):
-                            corpus_data.extend(data)
-                        else:
-                            corpus_data.append(data)
-                except:
+                    json_text = decode_bytes_with_detection(content_bytes)
+                    data_obj = json.loads(json_text)
+                    if isinstance(data_obj, list):
+                        corpus_data.extend(data_obj)
+                    else:
+                        corpus_data.append(data_obj)
+                except Exception:
                     # If JSON parsing fails, treat as text
-                    with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
-                        content = f.read()
+                    text = decode_bytes_with_detection(content_bytes)
                     corpus_data.append({
                         "title": file.filename,
-                        "text": content
+                        "text": text
                     })
+            else:
+                # Unknown extension: attempt text decode
+                text = decode_bytes_with_detection(content_bytes)
+                corpus_data.append({
+                    "title": file.filename,
+                    "text": text
+                })
             
             progress = 10 + (i + 1) * 80 // len(files)
             await send_progress_update(client_id, "upload", progress, f"Processed {file.filename}")
@@ -978,7 +1022,8 @@ async def upload_schema(dataset_name: str, schema_file: UploadFile = File(...)):
 
         content = await schema_file.read()
         try:
-            data = json.loads(content)
+            schema_text = decode_bytes_with_detection(content)
+            data = json.loads(schema_text)
         except Exception as e:
             raise HTTPException(status_code=400, detail=f"Invalid JSON: {e}")
         if not isinstance(data, dict):
