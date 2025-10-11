@@ -230,7 +230,7 @@ class ConfigManager:
         if self.triggers.mode not in valid_modes:
             raise ValueError(f"Invalid mode: {self.triggers.mode}. Must be one of {valid_modes}")
         
-        if self.construction.mode not in ["agent", "basic"]:
+        if self.construction.mode not in valid_modes:
             raise ValueError(f"Invalid construction mode: {self.construction.mode}")
         
         # Validate numerical parameters
