@@ -9,7 +9,7 @@ construction:
   - annoy_eng
   - demo
   max_workers: 32
-  mode: agent
+  mode: agent  # set noagent to speed up
   overlap: 200
   tree_comm:
     embedding_model: all-MiniLM-L6-v2
@@ -316,5 +316,5 @@ retrieval:
   top_k_filter: 20
 triggers:
   constructor_trigger: true
-  mode: agent
+  mode: agent  # set noagent to speed up
   retrieve_trigger: true
