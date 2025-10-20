@@ -30,6 +30,7 @@ class KTBuilder:
         self.llm_client = call_llm_api.LLMCompletionCall()
         self.all_chunks = {}
         self.mode = mode or config.construction.mode
+        self.stream = config.construction.stream
 
     def load_schema(self, schema_path) -> Dict[str, Any]:
         try:
@@ -112,7 +113,7 @@ class KTBuilder:
         logger.info(f"Chunk data saved to {chunk_file} ({len(all_data)} chunks)")
     
     def extract_with_llm(self, prompt: str):
-        response = self.llm_client.call_api(prompt)
+        response = self.llm_client.call_api(prompt, stream=self.stream)
         parsed_dict = json_repair.loads(response)
         parsed_json = json.dumps(parsed_dict, ensure_ascii=False)
         return parsed_json 

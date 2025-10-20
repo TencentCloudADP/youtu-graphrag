@@ -16,6 +16,7 @@ construction:
     enable_fast_mode: true
     struct_weight: 0.3
     max_total_communities: 100
+  stream: false
     
 datasets:
   hotpot:
