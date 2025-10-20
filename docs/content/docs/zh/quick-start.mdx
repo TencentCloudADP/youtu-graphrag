@@ -1,0 +1,174 @@
+---
+title: 快速开始
+description: Youtu-GraphRAG 快速开始指南：使用 Docker 或 Web UI 部署图增强复杂推理系统，几分钟内开始体验。
+sidebar_position: 2
+---
+
+## 概览
+
+本指南将帮助您使用 Docker 或 Web UI 部署方式快速设置和运行 Youtu-GraphRAG。请选择最适合您环境和需求的方法。
+
+## 系统要求
+
+| 项目 | 要求 |
+|------|------|
+| 操作系统 | macOS、Linux 或支持 Docker 的 Windows |
+| 内存 | 建议 8GB 以上 |
+| 磁盘空间 | 至少 2GB 可用空间 |
+| 网络 | 需要互联网连接以下载模型 |
+| LLM API | 兼容 OpenAI 的 API（如 OpenAI、DeepSeek 等） |
+
+## 方法一：Docker 部署（推荐）
+
+Docker 提供了跨不同环境最可靠和一致的部署体验。
+
+### 步骤 1：安装 Docker
+
+如果您还没有安装 Docker，请参考 [Docker 官方安装指南](https://docs.docker.com/get-started/)。
+
+### 步骤 2：克隆并配置
+
+```bash
+# 1. 克隆 Youtu-GraphRAG 项目
+git clone https://github.com/TencentCloudADP/youtu-graphrag
+cd youtu-graphrag
+
+# 2. 从模板创建 .env 文件
+cp .env.example .env
+```
+
+### 步骤 3：配置您的 LLM API
+
+编辑 `.env` 文件，配置您的 LLM API 凭据：
+
+```bash
+# DeepSeek API 配置示例
+LLM_MODEL=deepseek-chat
+LLM_BASE_URL=https://api.deepseek.com
+LLM_API_KEY=sk-xxxxxx
+
+# OpenAI API 配置示例
+# LLM_MODEL=gpt-4
+# LLM_BASE_URL=https://api.openai.com/v1
+# LLM_API_KEY=sk-xxxxxx
+```
+
+### 步骤 4：构建并运行
+
+```bash
+# 3. 构建 Docker 镜像
+docker build -t youtu_graphrag:v1 .
+```
+
+{/* ![Docker 构建过程](https://placeholder-url.com/docker-build.png) */}
+
+```bash
+# 4. 运行容器
+docker run -d -p 8000:8000 youtu_graphrag:v1
+
+# 5. 验证服务是否正常运行
+curl -v http://localhost:8000
+```
+
+{/* ![服务运行成功](https://placeholder-url.com/service-running.png) */}
+
+### 步骤 5：访问 Web 界面
+
+打开浏览器并访问：**http://localhost:8000**
+
+![](https://cdn.jsdelivr.net/gh/AllenWriter/picgo-images@main/images/Clipboard_Screenshot_1760947113.png)
+
+## 方法二：Web UI 体验
+
+此方法需要 Python 3.10+ 环境，适用于开发和测试环境。
+
+### 步骤 1：系统要求
+
+确保您已安装 Python 3.10 或更高版本：
+
+```bash
+python --version
+# 应输出 Python 3.10.x 或更高版本
+```
+
+### 步骤 2：克隆仓库
+
+```bash
+# 1. 克隆项目
+git clone https://github.com/TencentCloudADP/youtu-graphrag
+cd youtu-graphrag
+```
+
+### 步骤 3：创建虚拟环境
+
+建议创建虚拟环境以避免依赖冲突：
+
+```bash
+# 2. 在项目目录中创建虚拟环境
+python -m venv youtu-graphrag-env
+
+# 3. 激活虚拟环境
+# macOS/Linux：
+source youtu-graphrag-env/bin/activate
+
+# Windows：
+# youtu-graphrag-env\Scripts\activate
+```
+
+{/* ![虚拟环境激活成功](https://placeholder-url.com/venv-activated.png) */}
+
+### 步骤 4：配置环境
+
+```bash
+# 4. 创建 .env 文件
+cp .env.example .env
+```
+
+编辑 `.env` 文件，配置您的 LLM API 设置（与 Docker 方法相同）。
+
+### 步骤 5：安装并启动
+
+```bash
+# 5. 安装环境（在虚拟环境中安装依赖）
+./setup_env.sh
+
+# 6. 启动 Web 服务
+./start.sh
+```
+
+### 步骤 6：访问应用
+
+服务将在以下地址可用：**http://localhost:8000**
+
+{/* ![Web UI 安装成功](https://placeholder-url.com/webui-success.png) */}
+
+## 获取帮助
+
+如果遇到问题：
+
+1. **检查日志：**
+   ```bash
+   # Docker 部署
+   docker logs <container_id>
+   
+   # Web UI 部署
+   tail -f output/logs/app.log
+   ```
+
+2. **将日志和错误描述提供至社区：**
+   - [GitHub Issues](https://github.com/TencentCloudADP/youtu-graphrag/issues)
+   - [与源代码对话](https://deepwiki.com/TencentCloudADP/youtu-graphrag)
+   - [社区 Discord](https://discord.gg/QjqhkHQVVM)
+
+## 下一步
+
+成功设置 Youtu-GraphRAG 后：
+
+- **探索演示**：尝试内置的演示数据集
+- **上传您的数据**：开始使用您自己的文档构建知识图谱
+- **自定义 Schema**：将系统适配到您的特定领域
+- **高级功能**：探索社区检测和智能检索能力
+
+---
+
+🎉 **恭喜！** 您现在已经成功运行了 Youtu-GraphRAG。开始探索图增强复杂推理的强大功能吧！

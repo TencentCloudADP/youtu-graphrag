@@ -1,0 +1,171 @@
+---
+title: Youtu-GraphRAG Introduction
+description: Vertically Unified Agents for Graph Retrieval-Augmented Complex Reasoning - Revolutionary framework moving Pareto Frontier with 33.6% lower token cost and 16.62% higher accuracy over SOTA baselines.
+sidebar_position: 1
+---
+
+## Overview
+
+**Youtu-GraphRAG** is a vertically unified agentic paradigm that jointly connects the entire framework as an intricate integration based on graph schema. We allow seamless domain transfer with minimal intervention on the graph schema, providing insights of the next evolutionary GraphRAG paradigm for real-world applications with remarkable adaptability.
+
+🚀 Revolutionary framework moving Pareto Frontier with **33.6% lower token cost** and **16.62% higher accuracy** over SOTA baselines
+
+## Framework Architecture
+
+![](https://cdn.jsdelivr.net/gh/AllenWriter/picgo-images@main/images/20251020143857.png)
+
+*A sketched overview of our proposed framework Youtu-GraphRAG.*
+
+## Interactive Interface
+
+This [video](https://youtu.be/fVUsgClHqwc) walks through the main features of the project.
+
+![](https://cdn.jsdelivr.net/gh/AllenWriter/picgo-images@main/images/202510201506606.png)
+
+![](https://cdn.jsdelivr.net/gh/AllenWriter/picgo-images@main/images/202510201506480.png)
+
+
+## When and Why to use Youtu-GraphRAG
+
+🔗 **Multi-hop Reasoning/Summarization/Conclusion**: Complex questions requiring multi-step reasoning  
+📚 **Knowledge-Intensive Tasks**: Questions dependent on large amounts of structured/private/domain knowledge  
+🌐 **Domain Scalability**: Easily support encyclopedias, academic papers, commercial/private knowledge base and other domains with minimal intervention on the schema
+
+## Core Capabilities
+
+Based on our unified agentic paradigm for Graph Retrieval-Augmented Generation (GraphRAG), Youtu-GraphRAG introduces several key innovations that jointly connect the entire framework as an intricate integration:
+
+### 🏗️ Schema-Guided Hierarchical Knowledge Tree Construction
+
+- 🌱 **Seed Graph Schema**: Introduces targeted entity types, relations, and attribute types to bound automatic extraction agents
+- 📈 **Scalable Schema Expansion**: Continuously expands schemas for adaptability over unseen domains
+- 🏢 **Four-Level Architecture**: 
+  - **Level 1 (Attributes)**: Entity property information
+  - **Level 2 (Relations)**: Entity relationship triples
+  - **Level 3 (Keywords)**: Keyword indexing
+  - **Level 4 (Communities)**: Hierarchical community structure
+- ⚡ **Quick Adaptation to industrial applications**: We allow seamless domain transfer with minimal intervention on the schema
+
+### 🌳 Dually-Perceived Community Detection
+
+- 🔬 **Novel Community Detection Algorithm**: Fuses structural topology with subgraph semantics for comprehensive knowledge organization
+- 📊 **Hierarchical Knowledge Tree**: Naturally yields a structure supporting both top-down filtering and bottom-up reasoning that performs better than traditional Leiden and Louvain algorithms
+- 📝 **Community Summaries**: LLM-enhanced community summarization for higher-level knowledge abstraction
+
+![](https://cdn.jsdelivr.net/gh/AllenWriter/picgo-images@main/images/202510201513515.png)
+
+### 🤖 Agentic Retrieval
+
+- 🎯 **Schema-Aware Decomposition**: Interprets the same graph schema to transform complex queries into tractable and parallel sub-queries
+- 🔄 **Iterative Reflection**: Performs reflection for more advanced reasoning through IRCoT (Iterative Retrieval Chain of Thought)
+
+![](https://cdn.jsdelivr.net/gh/AllenWriter/picgo-images@main/images/202510201514908.png)
+
+### 🧠 Advanced Construction and Reasoning Capabilities
+
+- 🎯 **Performance Enhancement**: Less token costs and higher accuracy with optimized prompting, indexing and retrieval strategies
+- 🤹‍♀️ **User friendly visualization**: In `output/graphs/`, the four-level knowledge tree supports visualization with neo4j import，making reasoning paths and knowledge organization vividly visible to users
+- ⚡ **Parallel Sub-question Processing**: Concurrent handling of decomposed questions for efficiency and complex scenarios
+- 🤔 **Iterative Reasoning**: Step-by-step answer construction with reasoning traces
+- 📊 **Domain Scalability**: Designed for enterprise-scale deployment with minimal manual intervention for new domains
+
+### 📈 Fair Anonymous Dataset 'AnonyRAG'
+
+- 🔗 **Dataset Link**: [Hugging Face AnonyRAG](https://huggingface.co/datasets/Youtu-Graph/AnonyRAG)
+- 🛡️ **Against knowledge leakage**: Prevents LLM/embedding model pretraining data contamination
+- 🔍 **Real retrieval testing**: In-depth test on real retrieval performance of GraphRAG
+- 🌍 **Multi-lingual support**: Available in Chinese and English versions
+
+### ⚙️ Unified Configuration Management
+
+- 🎛️ **Centralized Parameter Management**: All components configured through a single YAML file
+- 🔧 **Runtime Parameter Override**: Dynamic configuration adjustment during execution
+- 🌍 **Multi-Environment Support**: Seamless domain transfer with minimal intervention on schema
+- 🔄 **Backward Compatibility**: Ensures existing code continues to function
+
+## 📊 Performance Comparisons
+
+Extensive experiments across six challenging benchmarks, including GraphRAG-Bench, HotpotQA and MuSiQue, demonstrate the robustness of Youtu-GraphRAG, remarkably moving the Pareto frontier with **33.6% lower token cost** compared to the sota methods and **16.62% higher accuracy** over state-of-the-art baselines.
+
+![](https://cdn.jsdelivr.net/gh/AllenWriter/picgo-images@main/images/202510201519961.png)
+
+![](https://cdn.jsdelivr.net/gh/AllenWriter/picgo-images@main/images/202510201519950.png)
+
+![](https://cdn.jsdelivr.net/gh/AllenWriter/picgo-images@main/images/202510201519584.png)
+
+## Quick Start
+
+**[📚 Complete Setup Guide](/docs/en/quick-start)** - Get started with Youtu-GraphRAG in minutes using Docker or Web UI.
+
+## Project Structure
+
+```
+youtu-graphrag/
+├── 📁 config/                     # Configuration System
+│   ├── base_config.yaml           # Main configuration file
+│   ├── config_loader.py           # Configuration loader
+│   └── __init__.py                # Configuration module interface
+│
+├── 📁 data/                       # Data Directory
+│
+├── 📁 models/                     # Core Models
+│   ├── 📁 constructor/            # Knowledge Graph Construction
+│   │   └── kt_gen.py              # KTBuilder - Hierarchical graph builder
+│   ├── 📁 retriever/              # Retrieval Module
+│   │   ├── enhanced_kt_retriever.py  # KTRetriever - Main retriever
+│   │   ├── agentic_decomposer.py     # Query decomposer
+│   └── └── faiss_filter.py           # DualFAISSRetriever - FAISS retrieval
+│
+├── 📁 utils/                      # Utility Modules
+│   ├── tree_comm.py              # community detection algorithm
+│   ├── call_llm_api.py           # LLM API calling
+│   ├── eval.py                   # Evaluation tools
+│   └── graph_processor.py        # Graph processing tools
+│
+├── 📁 output/                    # Output Directory
+│   ├── graphs/                   # Constructed knowledge graphs
+│   ├── chunks/                   # Text chunk information
+│   └── logs/                     # Runtime logs
+│
+├── main.py                       # 🎯 Main program entry
+└── README.md                     # Project documentation
+```
+
+## Fair Anonymous Dataset 'AnonyRAG'
+
+- **Against knowledge leakage in LLM/embedding model pretraining**
+- **In-depth test on real retrieval performance of GraphRAG**
+- **Multi-lingual with Chinese and English versions**
+
+## Next Steps
+
+After familiarizing yourself with the basic capabilities, proceed to [Quick Start](/docs/en/quick-start) to complete setup and start building your knowledge graphs.
+
+Related Links:
+
+<div className="space-y-3">
+  <div className="flex items-center gap-3">
+    <span className="w-6 h-6 bg-gray-200 rounded flex items-center justify-center">G</span>
+    <a href="https://github.com/TencentCloudADP/youtu-graphrag" className="hover:underline">
+      GitHub Repository
+    </a>
+  </div>
+  <div className="flex items-center gap-3">
+    <span className="w-6 h-6 bg-yellow-200 rounded flex items-center justify-center">H</span>
+    <a href="https://huggingface.co/datasets/Youtu-Graph/AnonyRAG" className="hover:underline">
+      AnonyRAG Dataset
+    </a>
+  </div>
+  <div className="flex items-center gap-3">
+    <span className="w-6 h-6 bg-red-200 rounded flex items-center justify-center">P</span>
+    <a href="https://arxiv.org/abs/2508.19855" className="hover:underline">
+      Academic Paper
+    </a>
+  </div>
+  <div className="flex items-center gap-3">
+    <span className="w-6 h-6 bg-blue-200 rounded flex items-center justify-center">D</span>
+    <a href="https://deepwiki.com/TencentCloudADP/youtu-graphrag" className="hover:underline">
+      DeepWiki Documentation
+    </a>
+  </div>
+</div>
