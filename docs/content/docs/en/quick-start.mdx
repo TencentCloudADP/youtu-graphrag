@@ -1,0 +1,167 @@
+---
+title: Quick Start
+description: Get started with Youtu-GraphRAG in minutes - Deploy using Docker or Web UI for Graph Retrieval-Augmented Complex Reasoning.
+sidebar_position: 2
+---
+
+## Overview
+
+This guide will help you quickly set up and run Youtu-GraphRAG using either Docker or Web UI deployment. Choose the method that best fits your environment and needs.
+
+## Prerequisites
+
+| Item | Requirement |
+|------|------|
+| Operating System | macOS, Linux, or Windows with Docker |
+| Memory | Recommended 8GB or more |
+| Disk Space | At least 2GB free space |
+| Network | Internet connection for model downloads |
+| LLM API | OpenAI-compatible API (e.g., OpenAI, DeepSeek, etc.) |
+
+## Method 1: Docker Deployment (Recommended)
+
+Docker provides the most reliable and consistent deployment experience across different environments.
+
+### Step 1: Install Docker
+
+If you don't have Docker installed, follow the [official Docker installation guide](https://docs.docker.com/get-started/).
+
+### Step 2: Clone and Configure
+
+```bash
+# 1. Clone Youtu-GraphRAG project
+git clone https://github.com/TencentCloudADP/youtu-graphrag
+cd youtu-graphrag
+
+# 2. Create .env file from template
+cp .env.example .env
+```
+
+### Step 3: Configure Your LLM API
+
+Edit the `.env` file with your LLM API credentials:
+
+```bash
+# Example configuration for DeepSeek API
+LLM_MODEL=deepseek-chat
+LLM_BASE_URL=https://api.deepseek.com
+LLM_API_KEY=sk-xxxxxx
+
+# Example configuration for OpenAI API
+# LLM_MODEL=gpt-4
+# LLM_BASE_URL=https://api.openai.com/v1
+# LLM_API_KEY=sk-xxxxxx
+```
+
+### Step 4: Build and Run
+
+```bash
+# 3. Build Docker image
+docker build -t youtu_graphrag:v1 .
+
+# 4. Run the container
+docker run -d -p 8000:8000 youtu_graphrag:v1
+
+# 5. Verify the service is running
+curl -v http://localhost:8000
+```
+
+### Step 5: Access the Web Interface
+
+Open your browser and navigate to: **http://localhost:8000**
+
+![](https://cdn.jsdelivr.net/gh/AllenWriter/picgo-images@main/images/Clipboard_Screenshot_1760947113.png)
+
+## Method 2: Web UI Experience
+
+This method requires Python 3.10+ and is suitable for development and testing environments.
+
+### Step 1: System Requirements
+
+Ensure you have Python 3.10 or higher installed:
+
+```bash
+python --version
+# Should output Python 3.10.x or higher
+```
+
+### Step 2: Clone Repository
+
+```bash
+# 1. Clone the project
+git clone https://github.com/TencentCloudADP/youtu-graphrag
+cd youtu-graphrag
+```
+
+### Step 3: Create Virtual Environment
+
+It's recommended to create a virtual environment to avoid dependency conflicts:
+
+```bash
+# 2. Create virtual environment in project directory
+python -m venv youtu-graphrag-env
+
+# 3. Activate virtual environment
+# On macOS/Linux:
+source youtu-graphrag-env/bin/activate
+
+# On Windows:
+# youtu-graphrag-env\Scripts\activate
+```
+
+### Step 4: Configure Environment
+
+```bash
+# 4. Create .env file
+cp .env.example .env
+```
+
+Edit the `.env` file with your LLM API settings (same as Docker method above).
+
+### Step 5: Setup and Launch
+
+```bash
+# 5. Setup environment (installs dependencies in virtual environment)
+./setup_env.sh
+
+# 6. Launch the web service
+./start.sh
+```
+
+### Step 5: Access the Application
+
+The service will be available at: **http://localhost:8000**
+
+### Getting Help
+
+If you encounter issues:
+
+1. **Check the logs:**
+   ```bash
+   # For Docker deployment
+   docker logs <container_id>
+   
+   # For Web UI deployment
+   tail -f output/logs/app.log
+   ```
+
+2. **Seek help from the community:**
+   
+   Share your error details and logs with the community:
+
+   - [GitHub Issues](https://github.com/TencentCloudADP/youtu-graphrag/issues)
+   - [Chat with Source Code](https://deepwiki.com/TencentCloudADP/youtu-graphrag)
+   - [Community Discord](https://discord.gg/QjqhkHQVVM)
+
+## What's Next?
+
+After successfully setting up Youtu-GraphRAG:
+
+- **Explore the Demo**: Try the built-in demo datasets
+- **Upload Your Data**: Start building knowledge graphs with your own documents
+- **Customize Schemas**: Adapt the system to your specific domain
+- **Advanced Features**: Explore community detection and agentic retrieval capabilities
+
+---
+
+🎉 **Congratulations!** You now have Youtu-GraphRAG up and running. Start exploring the power of Graph Retrieval-Augmented Complex Reasoning!
