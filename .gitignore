@@ -23,6 +23,9 @@ out/
 .contentlayer/
 .content-collections/
 .source/
+..bfg-report/
+
+
 
 # Package manager files
 package-lock.json
