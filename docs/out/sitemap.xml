@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">
+<url>
+<loc>https://hellodify.com/</loc>
+<xhtml:link rel="alternate" hreflang="en" href="https://hellodify.com/en" />
+<xhtml:link rel="alternate" hreflang="zh" href="https://hellodify.com/zh" />
+<lastmod>2025-10-15T06:25:32.360Z</lastmod>
+<changefreq>daily</changefreq>
+<priority>1</priority>
+</url>
+<url>
+<loc>https://hellodify.com/docs/en</loc>
+<xhtml:link rel="alternate" hreflang="en" href="https://hellodify.com/docs/en" />
+<xhtml:link rel="alternate" hreflang="zh" href="https://hellodify.com/docs/zh" />
+<lastmod>2025-10-15T06:25:32.360Z</lastmod>
+<changefreq>weekly</changefreq>
+<priority>0.9</priority>
+</url>
+<url>
+<loc>https://hellodify.com/docs/en/quickstart</loc>
+<xhtml:link rel="alternate" hreflang="en" href="https://hellodify.com/docs/en/quickstart" />
+<xhtml:link rel="alternate" hreflang="zh" href="https://hellodify.com/docs/zh/quickstart" />
+<lastmod>2025-10-15T06:25:32.360Z</lastmod>
+<changefreq>weekly</changefreq>
+<priority>0.8</priority>
+</url>
+<url>
+<loc>https://hellodify.com/docs/en/contributing</loc>
+<xhtml:link rel="alternate" hreflang="en" href="https://hellodify.com/docs/en/contributing" />
+<xhtml:link rel="alternate" hreflang="zh" href="https://hellodify.com/docs/zh/contributing" />
+<lastmod>2025-10-15T06:25:32.360Z</lastmod>
+<changefreq>weekly</changefreq>
+<priority>0.7</priority>
+</url>
+<url>
+<loc>https://hellodify.com/docs/en/workflow</loc>
+<xhtml:link rel="alternate" hreflang="en" href="https://hellodify.com/docs/en/workflow" />
+<xhtml:link rel="alternate" hreflang="zh" href="https://hellodify.com/docs/zh/workflow" />
+<lastmod>2025-10-15T06:25:32.360Z</lastmod>
+<changefreq>weekly</changefreq>
+<priority>0.7</priority>
+</url>
+<url>
+<loc>https://hellodify.com/docs/en/workflow/workflow-chatflow-difference</loc>
+<xhtml:link rel="alternate" hreflang="en" href="https://hellodify.com/docs/en/workflow/workflow-chatflow-difference" />
+<xhtml:link rel="alternate" hreflang="zh" href="https://hellodify.com/docs/zh/workflow/workflow-chatflow-difference" />
+<lastmod>2025-10-15T06:25:32.360Z</lastmod>
+<changefreq>weekly</changefreq>
+<priority>0.7</priority>
+</url>
+<url>
+<loc>https://hellodify.com/docs/en/workflow/twitter-mbti-receipt</loc>
+<xhtml:link rel="alternate" hreflang="en" href="https://hellodify.com/docs/en/workflow/twitter-mbti-receipt" />
+<xhtml:link rel="alternate" hreflang="zh" href="https://hellodify.com/docs/zh/workflow/twitter-mbti-receipt" />
+<lastmod>2025-10-15T06:25:32.360Z</lastmod>
+<changefreq>weekly</changefreq>
+<priority>0.7</priority>
+</url>
+<url>
+<loc>https://hellodify.com/docs/en/knowledge-base/image-retrieval</loc>
+<xhtml:link rel="alternate" hreflang="en" href="https://hellodify.com/docs/en/knowledge-base/image-retrieval" />
+<xhtml:link rel="alternate" hreflang="zh" href="https://hellodify.com/docs/zh/knowledge-base/image-retrieval" />
+<lastmod>2025-10-15T06:25:32.360Z</lastmod>
+<changefreq>weekly</changefreq>
+<priority>0.7</priority>
+</url>
+<url>
+<loc>https://hellodify.com/docs/en/plugin</loc>
+<xhtml:link rel="alternate" hreflang="en" href="https://hellodify.com/docs/en/plugin" />
+<xhtml:link rel="alternate" hreflang="zh" href="https://hellodify.com/docs/zh/plugin" />
+<lastmod>2025-10-15T06:25:32.360Z</lastmod>
+<changefreq>weekly</changefreq>
+<priority>0.7</priority>
+</url>
+<url>
+<loc>https://hellodify.com/docs/en/plugin/ssh-plugin-vibe-coding</loc>
+<xhtml:link rel="alternate" hreflang="en" href="https://hellodify.com/docs/en/plugin/ssh-plugin-vibe-coding" />
+<xhtml:link rel="alternate" hreflang="zh" href="https://hellodify.com/docs/zh/plugin/ssh-plugin-vibe-coding" />
+<lastmod>2025-10-15T06:25:32.360Z</lastmod>
+<changefreq>weekly</changefreq>
+<priority>0.7</priority>
+</url>
+<url>
+<loc>https://hellodify.com/docs/en/plugin/cursor-rules</loc>
+<xhtml:link rel="alternate" hreflang="en" href="https://hellodify.com/docs/en/plugin/cursor-rules" />
+<xhtml:link rel="alternate" hreflang="zh" href="https://hellodify.com/docs/zh/plugin/cursor-rules" />
+<lastmod>2025-10-15T06:25:32.360Z</lastmod>
+<changefreq>weekly</changefreq>
+<priority>0.7</priority>
+</url>
+</urlset>

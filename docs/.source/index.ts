@@ -1,0 +1,8 @@
+// @ts-nocheck -- skip type checking
+import * as docs_3 from "../content/docs/zh/quick-start.mdx?collection=docs&hash=1760950978830"
+import * as docs_2 from "../content/docs/zh/index.mdx?collection=docs&hash=1760950978830"
+import * as docs_1 from "../content/docs/en/quick-start.mdx?collection=docs&hash=1760950978830"
+import * as docs_0 from "../content/docs/en/index.mdx?collection=docs&hash=1760950978830"
+import { _runtime } from "fumadocs-mdx"
+import * as _source from "../source.config"
+export const docs = _runtime.docs<typeof _source.docs>([{ info: {"path":"en/index.mdx","absolutePath":"/Users/pro/Desktop/youtu-graphrag/docs/content/docs/en/index.mdx"}, data: docs_0 }, { info: {"path":"en/quick-start.mdx","absolutePath":"/Users/pro/Desktop/youtu-graphrag/docs/content/docs/en/quick-start.mdx"}, data: docs_1 }, { info: {"path":"zh/index.mdx","absolutePath":"/Users/pro/Desktop/youtu-graphrag/docs/content/docs/zh/index.mdx"}, data: docs_2 }, { info: {"path":"zh/quick-start.mdx","absolutePath":"/Users/pro/Desktop/youtu-graphrag/docs/content/docs/zh/quick-start.mdx"}, data: docs_3 }], [{"info":{"path":"en/meta.json","absolutePath":"/Users/pro/Desktop/youtu-graphrag/docs/content/docs/en/meta.json"},"data":{"pages":["index","quick-start"],"defaultOpen":true,"icon":"home-4-line"}}, {"info":{"path":"zh/meta.json","absolutePath":"/Users/pro/Desktop/youtu-graphrag/docs/content/docs/zh/meta.json"},"data":{"pages":["index","quick-start"],"defaultOpen":true,"icon":"home-4-line"}}])
