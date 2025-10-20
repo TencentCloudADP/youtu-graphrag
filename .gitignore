@@ -1,28 +1,75 @@
+# Python
 */__pycache__/
 *.py[oc]
 build/
 dist/
 wheels/
 *.egg-info
-
-.DS_Store
-.vscode
-.idea
-.codebuddy/
-
-
 .venv
 .env
 
+# AI/ML files
 *.pt
 *.pkl
 *.npy
 *.index
-*.json
 
+# Node.js & Next.js
+node_modules/
+.next/
+out/
+.cache/
+*.tsbuildinfo
+.contentlayer/
+.content-collections/
+.source/
+
+# Package manager files
+package-lock.json
+yarn-error.log*
+npm-debug.log*
+yarn-debug.log*
+lerna-debug.log*
+
+# Environment variables
+.env*.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# IDE & Editors
+.DS_Store
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.codebuddy/
+
+# OS files
+Thumbs.db
+Desktop.ini
+ehthumbs.db
+
+# Temporary files
+.tmp/
+*.tmp
+*.temp
+
+# Coverage & Testing
+coverage/
+.nyc_output/
+.eslintcache
+.stylelintcache
+
+# Deployment
+.vercel/
+next-env.d.ts
+
+# Project specific
+*.json
 data/
 output/
-
 retriever/faiss_cache_new/*
 docker/Dockerfile
 site/
