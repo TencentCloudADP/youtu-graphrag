@@ -1,0 +1,30 @@
+@import 'tailwindcss';
+@import 'fumadocs-ui/css/neutral.css';
+@import 'fumadocs-ui/css/preset.css';
+
+/* 画中画效果的全局样式 */
+.pip-container {
+  container-type: scroll-state;
+  position: relative;
+  width: 100%;
+}
+
+@container scroll-state(stuck: top) {
+  iframe {
+    position: fixed;
+    bottom: 1rem;
+    right: 1rem;
+    width: 300px;
+    height: 200px;
+    z-index: 50;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+    border-radius: 8px;
+    overflow: hidden;
+    transform-origin: bottom right;
+    transition: transform 0.3s ease-in-out;
+  }
+  
+  iframe:hover {
+    transform: scale(1.1);
+  }
+}
