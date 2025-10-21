@@ -29,27 +29,41 @@ class LLMCompletionCall:
         else:
             self.client = OpenAI(base_url=self.llm_base_url, api_key = self.llm_api_key)
 
-    def call_api(self, content: str) -> str:
+    def call_api(self, content: str, temperature: float = 0.3, stream: bool = False) -> str:
         """
         Call API to generate text with retry mechanism.
-        
+
         Args:
             content: Prompt content
-            
+            temperature: Sampling temperature (0.0-2.0)
+            stream: Whether to use streaming mode
+
         Returns:
             Generated text response
         """
-            
+
         try:
             completion = self.client.chat.completions.create(
                 model=self.llm_model,
                 messages=[{"role": "user", "content": content}],
-                temperature=0.3
+                temperature=temperature,
+                stream=stream
             )
-            raw = completion.choices[0].message.content or ""
+
+            if stream:
+                # Handle streaming response
+                content_parts = []
+                for chunk in completion:
+                    if chunk.choices[0].delta.content is not None:
+                        content_parts.append(chunk.choices[0].delta.content)
+                raw = "".join(content_parts)
+            else:
+                # Handle non-streaming response
+                raw = completion.choices[0].message.content or ""
+
             clean_completion = self._clean_llm_content(raw)
             return clean_completion
-            
+
         except Exception as e:
             logger.error(f"LLM api calling failed. Error: {e}")
             raise e 
