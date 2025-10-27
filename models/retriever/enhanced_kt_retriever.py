@@ -606,9 +606,9 @@ class KTRetriever:
             
             return question_embed, type_filtered_results
         else:
-            original_results = self.retrieve(question)
+            question_embed, original_results = self.retrieve(question)
             logger.info(f"Query encoding: {query_time:.3f}s, Fallback to original retrieval")
-            return original_results
+            return question_embed, original_results
 
     def _type_based_retrieval(self, question_embed: torch.Tensor, question: str, involved_types: dict) -> Dict:
         """
