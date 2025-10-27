@@ -1393,7 +1393,9 @@ class DualFAISSRetriever:
                         if (h, r, t) in input_triples_set:
                             # Convert distance to similarity score (FAISS returns distances, we need similarities)
                             # For normalized vectors, similarity = 1 - distance^2 / 2
-                            similarity_score = 1.0 - (distance ** 2) / 2.0
+                            # similarity_score = 1.0 - (distance ** 2) / 2.0
+                            # bug fixing since D already returns similarity in IndexFlatIP
+                            similarity_score = distance
                             # Only keep triples above threshold
                             if similarity_score >= threshold:
                                 scored_triples.append((h, r, t, similarity_score))  # Return as (head, tail, relation, score)
