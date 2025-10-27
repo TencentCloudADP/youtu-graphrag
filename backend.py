@@ -28,6 +28,14 @@ import uvicorn
 from utils.logger import logger
 import ast
 
+# Import document parser
+try:
+    from utils.document_parser import get_parser
+    DOCUMENT_PARSER_AVAILABLE = True
+except ImportError as e:
+    DOCUMENT_PARSER_AVAILABLE = False
+    logger.warning(f"Document parser not available: {e}")
+
 # Try to import GraphRAG components
 try:
     from models.constructor import kt_gen as constructor
@@ -262,15 +270,21 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str):
 async def upload_files(files: List[UploadFile] = File(...), client_id: str = "default"):
     """Upload files and prepare for graph construction"""
     try:
-        # Use original filename (without extension) as dataset name
-        # If multiple files, use the first file's name
-        main_file = files[0]
-        original_name = os.path.splitext(main_file.filename)[0]
-        # Clean filename to be filesystem-safe
-        dataset_name = "".join(c for c in original_name if c.isalnum() or c in (' ', '-', '_')).rstrip()
-        dataset_name = dataset_name.replace(' ', '_')
+        # Generate dataset name based on file count
+        if len(files) == 1:
+            # Single file: use its name
+            main_file = files[0]
+            original_name = os.path.splitext(main_file.filename)[0]
+            # Clean filename to be filesystem-safe
+            dataset_name = "".join(c for c in original_name if c.isalnum() or c in (' ', '-', '_')).rstrip()
+            dataset_name = dataset_name.replace(' ', '_')
+        else:
+            # Multiple files: create a descriptive name with date
+            from datetime import datetime
+            date_str = datetime.now().strftime("%Y%m%d")
+            dataset_name = f"多篇文档_{len(files)}files_{date_str}"
         
-        # Add timestamp if dataset already exists
+        # Add counter if dataset already exists
         base_name = dataset_name
         counter = 1
         while os.path.exists(f"data/uploaded/{dataset_name}"):
@@ -286,7 +300,13 @@ async def upload_files(files: List[UploadFile] = File(...), client_id: str = "de
         corpus_data = []
         skipped_files: List[str] = []
         processed_count = 0
-        allowed_extensions = {".txt", ".md", ".json"}
+        allowed_extensions = {".txt", ".md", ".json", ".pdf", ".docx", ".doc"}
+        
+        # Initialize document parser if needed
+        doc_parser = None
+        if DOCUMENT_PARSER_AVAILABLE:
+            doc_parser = get_parser()
+        
         for i, file in enumerate(files):
             file_path = os.path.join(upload_dir, file.filename)
             with open(file_path, "wb") as buffer:
@@ -303,6 +323,35 @@ async def upload_files(files: List[UploadFile] = File(...), client_id: str = "de
                 progress = 10 + (i + 1) * 80 // len(files)
                 await send_progress_update(client_id, "upload", progress, f"Skipped unsupported file: {file.filename}")
                 continue
+            
+            # Handle PDF and DOCX/DOC files with document parser
+            if ext in ['.pdf', '.docx', '.doc']:
+                if not doc_parser:
+                    logger.warning(f"Document parser not available, skipping {file.filename}")
+                    skipped_files.append(file.filename)
+                    progress = 10 + (i + 1) * 80 // len(files)
+                    await send_progress_update(client_id, "upload", progress, f"Skipped {file.filename} (parser unavailable)")
+                    continue
+                
+                try:
+                    text = doc_parser.parse_file(file_path, ext)
+                    if text and text.strip():
+                        corpus_data.append({
+                            "title": file.filename,
+                            "text": text
+                        })
+                        processed_count += 1
+                        await send_progress_update(client_id, "upload", 10 + (i + 1) * 80 // len(files), f"Parsed {file.filename}")
+                    else:
+                        logger.warning(f"No text extracted from {file.filename}")
+                        skipped_files.append(file.filename)
+                        await send_progress_update(client_id, "upload", 10 + (i + 1) * 80 // len(files), f"No text in {file.filename}")
+                except Exception as e:
+                    logger.error(f"Error parsing {file.filename}: {e}")
+                    skipped_files.append(file.filename)
+                    await send_progress_update(client_id, "upload", 10 + (i + 1) * 80 // len(files), f"Failed to parse {file.filename}")
+                continue
+            
             # Treat plain text formats explicitly (.txt and .md)
             if filename_lower.endswith(('.txt', '.md')):
                 text = decode_bytes_with_detection(content_bytes)
@@ -333,7 +382,7 @@ async def upload_files(files: List[UploadFile] = File(...), client_id: str = "de
         
         # Ensure at least one valid file processed
         if processed_count == 0:
-            msg = "No supported files were uploaded. Allowed: .txt, .md, .json"
+            msg = "No supported files were uploaded. Allowed: .txt, .md, .json, .pdf, .docx, .doc"
             if skipped_files:
                 msg += f"; skipped: {', '.join(skipped_files)}"
             await send_progress_update(client_id, "upload", 0, msg)

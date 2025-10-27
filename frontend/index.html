@@ -1089,7 +1089,7 @@
                                         <h3 id="uploadDragTitle">Drag & Drop Files Here</h3>
                                         <p id="uploadDragDesc">or click to browse files</p>
                     <p id="uploadSupports" style="font-size: 12px; color: rgba(255,255,255,0.6); margin-top: 12px;">
-                        Currently supports: .txt, .md, .json
+                        Currently supports: .txt, .md, .json, .pdf, .docx, .doc
                     </p>
                     <div style="margin-top: 20px; padding: 15px; background: rgba(255,255,255,0.1); border-radius: 10px; text-align: left; font-size: 11px; color: rgba(255,255,255,0.8);">
                                                 <div id="uploadSampleHeader" style="font-weight: 600; margin-bottom: 8px;">📄 Sample Format (.json):</div>
@@ -1106,7 +1106,7 @@
   ]
 </pre>
                     </div>
-                    <input type="file" id="fileInput" multiple accept=".txt,.json,.md" style="display: none;">
+                    <input type="file" id="fileInput" multiple accept=".txt,.json,.md,.pdf,.docx,.doc" style="display: none;">
                 </div>
                 
                 <div id="fileList" class="file-list hidden"></div>
@@ -1213,7 +1213,7 @@
                 uploadDocuments: 'Upload Documents',
                 uploadDragTitle: 'Drag & Drop Files Here',
                 uploadDragDesc: 'or click to browse files',
-                uploadSupports: 'Currently supports: .txt, .md, .json',
+                uploadSupports: 'Currently supports: .txt, .md, .json, .pdf, .docx, .doc',
                 uploadSampleHeader: '📄 Sample Format (.json):',
                 uploadBtn: 'Upload Files',
                 clearUploadBtn: 'Clear',
@@ -1233,7 +1233,15 @@
                 retrievalProgress: (found,cand) => `Retrieval progress: ${found} relevant nodes from ${cand} candidates.`,
                 answerStart: 'Synthesizing the final answer...',
                 qaCompleted: 'QA process completed!',
-                completedBadge: '✔️ Completed'
+                completedBadge: '✔️ Completed',
+                datasetDocCountLabel: (count) => count === 1 ? ' (1 document)' : ` (${count} documents)`,
+                uploadSuccessMessage: (name, count) => {
+                    const friendlyName = (name || '').replace(/_/g, ' ').trim() || name || 'dataset';
+                    if (typeof count === 'number' && count > 0) {
+                        return `Dataset "${friendlyName}" uploaded successfully${count === 1 ? ' (1 document)' : ` (${count} documents)`}!`;
+                    }
+                    return `Dataset "${friendlyName}" uploaded successfully!`;
+                }
             },
             zh: {
                 processing: '正在处理你的问题…',
@@ -1249,7 +1257,7 @@
                 uploadDocuments: '上传文档',
                 uploadDragTitle: '拖拽文件到这里',
                 uploadDragDesc: '或点击选择文件',
-                uploadSupports: '当前支持：.md,.txt,.json',
+                uploadSupports: '当前支持：.txt、.md、.json、.pdf、.docx、.doc',
                 uploadSampleHeader: '📄 示例格式（.json）：',
                 uploadBtn: '开始上传',
                 clearUploadBtn: '清空',
@@ -1269,7 +1277,15 @@
                 retrievalProgress: (found,cand) => `检索进度：在 ${cand} 个候选中找到 ${found} 个相关节点。`,
                 answerStart: '正在综合生成最终答案…',
                 qaCompleted: '问答流程完成！',
-                completedBadge: '✔️ 已完成'
+                completedBadge: '✔️ 已完成',
+                datasetDocCountLabel: (count) => count === 1 ? '（1篇文档）' : `（共${count}篇文档）`,
+                uploadSuccessMessage: (name, count) => {
+                    const friendlyName = (name || '').replace(/_/g, ' ').trim() || name || '数据集';
+                    if (typeof count === 'number' && count > 0) {
+                        return `数据集“${friendlyName}”上传成功${count === 1 ? '（1篇文档）' : `（共${count}篇文档）`}！`;
+                    }
+                    return `数据集“${friendlyName}”上传成功！`;
+                }
             }
         };
 
@@ -1311,6 +1327,11 @@
             // Processing text & badge (if visible)
             const procText = document.getElementById('qaProcessingText'); if (procText) procText.textContent = t.processing;
             const badge = document.getElementById('qaCompletionBadge'); if (badge && badge.style.display !== 'none') badge.textContent = t.completedBadge;
+
+            // Refresh dataset renderings to reflect language-specific labels
+            displayDatasets();
+            loadDatasetOptions('graphDataset');
+            loadDatasetOptions('qaDataset');
         }
 
         // API base URL
@@ -1452,6 +1473,20 @@
             return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
         }
 
+        function formatDatasetDisplayName(dataset) {
+            if (!dataset) return '';
+            const rawName = (dataset.display_label || dataset.name || '').toString();
+            const cleanedName = rawName.replace(/_/g, ' ').trim() || (dataset.name || '');
+            const docCount = typeof dataset.docs_count === 'number' ? dataset.docs_count : null;
+            if (docCount && docCount > 0) {
+                const langConfig = i18n[currentLang] || i18n.en;
+                const suffixFn = langConfig?.datasetDocCountLabel;
+                const suffix = suffixFn ? suffixFn(docCount) : ` (${docCount} documents)`;
+                return `${cleanedName}${suffix}`;
+            }
+            return cleanedName;
+        }
+
         async function uploadFiles() {
             if (selectedFiles.length === 0) return;
 
@@ -1484,7 +1519,19 @@
                 progressFill.style.width = '100%';
                 progressText.textContent = 'Upload completed!';
 
-                showMessage('Files uploaded successfully!', 'success');
+                const uploadData = response?.data || {};
+                const datasetName = uploadData.dataset_name;
+                const filesCount = uploadData.files_count;
+                const langConfig = i18n[currentLang] || i18n.en;
+                if (langConfig?.uploadSuccessMessage) {
+                    showMessage(langConfig.uploadSuccessMessage(datasetName, filesCount), 'success');
+                } else {
+                    let successMessage = datasetName ? `Dataset "${datasetName}" uploaded successfully!` : 'Files uploaded successfully!';
+                    if (typeof filesCount === 'number' && filesCount > 0) {
+                        successMessage += filesCount === 1 ? ' (1 document)' : ` (${filesCount} documents)`;
+                    }
+                    showMessage(successMessage, 'success');
+                }
                 clearFiles();
                 refreshData();
 
@@ -1524,6 +1571,7 @@
 
         function displayDatasets() {
             const container = document.getElementById('datasetsList');
+            if (!container) return;
             if (datasets.length === 0) {
                 container.innerHTML = '<p style="color: rgba(255,255,255,0.6);">No datasets available. Upload some files to get started.</p>';
                 return;
@@ -1532,7 +1580,7 @@
             container.innerHTML = datasets.map(dataset => `
                 <div class="file-item">
                     <div>
-                        <strong>${dataset.name}</strong>
+                        <strong>${formatDatasetDisplayName(dataset)}</strong>
                         <span style="color: rgba(255,255,255,0.6);"> (${dataset.type})</span>
                         ${dataset.type !== 'demo' ? `<span style="margin-left:8px; font-size:12px; color:${dataset.has_custom_schema ? '#228B22' : 'rgba(255,255,255,0.6)'}; font-weight:600;">Schema: ${dataset.has_custom_schema ? 'custom' : 'default'}</span>` : ''}
                     </div>
@@ -1790,10 +1838,19 @@
 
         function loadDatasetOptions(selectId) {
             const select = document.getElementById(selectId);
+            if (!select) return;
+
             const readyDatasets = datasets.filter(d => d.status === 'ready');
-            
-            select.innerHTML = '<option value="">Select a dataset...</option>' +
-                readyDatasets.map(d => `<option value="${d.name}">${d.name}</option>`).join('');
+            const currentValue = select.value;
+            const langConfig = i18n[currentLang] || i18n.en;
+            const placeholder = langConfig?.selectDatasetPlaceholder || 'Select a dataset...';
+
+            select.innerHTML = `<option value="">${placeholder}</option>` +
+                readyDatasets.map(d => `<option value="${d.name}">${formatDatasetDisplayName(d)}</option>`).join('');
+
+            if (readyDatasets.some(d => d.name === currentValue)) {
+                select.value = currentValue;
+            }
         }
 
         async function loadGraphData() {
