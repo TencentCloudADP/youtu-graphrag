@@ -282,7 +282,7 @@ async def upload_files(files: List[UploadFile] = File(...), client_id: str = "de
             # Multiple files: create a descriptive name with date
             from datetime import datetime
             date_str = datetime.now().strftime("%Y%m%d")
-            dataset_name = f"多篇文档_{len(files)}files_{date_str}"
+            dataset_name = f"{len(files)}files_{date_str}"
         
         # Add counter if dataset already exists
         base_name = dataset_name
