@@ -221,7 +221,7 @@ curl -v http://localhost:8000
 ```
 
 ### 📖 Full Usage Guide
-For advanced config and usage：[**🚀 FullGuide**](FULLGUIDE.md)
+For advanced config and usage：[**🚀 Full Guide (English)**](FULLGUIDE.md) | [**🚀 完整指南（中文）**](FULLGUIDE-CN.md)
 
 ### ⭐ **Start using Youtu-GraphRAG now and experience the intelligent question answering!** 🚀
 

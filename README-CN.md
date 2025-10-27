@@ -212,7 +212,7 @@ curl -v http://localhost:8000 # 检测服务是否正常运行
 ```
 
 ### 📖 完整使用指南
-详细的安装、配置和使用说明请参考：[**🚀 完整指南**](FULLGUIDE.md)
+详细的安装、配置和使用说明请参考：[**🚀 完整指南（中文）**](FULLGUIDE-CN.md) | [**🚀 Full Guide (English)**](FULLGUIDE.md)
 
 ## ⭐ **立即体验 Youtu-GraphRAG，开启智能问答的新篇章！** 🚀
 
