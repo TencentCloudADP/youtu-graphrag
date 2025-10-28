@@ -31,6 +31,31 @@ except ImportError:
     DOCX_AVAILABLE = False
     logger.warning("python-docx not available")
 
+try:
+    import subprocess
+    # Check for system-level antiword (prefer /usr/local/bin over pip package)
+    antiword_check = subprocess.run(['which', '/usr/local/bin/antiword'], 
+                                    capture_output=True)
+    if antiword_check.returncode == 0:
+        ANTIWORD_PATH = '/usr/local/bin/antiword'
+        ANTIWORD_AVAILABLE = True
+    else:
+        # Fallback to PATH search
+        antiword_check = subprocess.run(['which', 'antiword'], 
+                                       capture_output=True)
+        ANTIWORD_PATH = 'antiword'
+        ANTIWORD_AVAILABLE = antiword_check.returncode == 0
+except Exception:
+    ANTIWORD_AVAILABLE = False
+    ANTIWORD_PATH = 'antiword'
+
+try:
+    import textract  # type: ignore
+    TEXTRACT_AVAILABLE = True
+except ImportError:
+    TEXTRACT_AVAILABLE = False
+    logger.debug("textract not available")
+
 
 class DocumentParser:
     """Parse various document formats to extract text content"""
@@ -162,7 +187,7 @@ class DocumentParser:
     
     def _parse_docx(self, docx_path: str) -> Optional[str]:
         """
-        Parse DOCX/DOC using python-docx
+        Parse DOCX/DOC using available methods
         
         Args:
             docx_path: Path to DOCX/DOC file
@@ -170,8 +195,52 @@ class DocumentParser:
         Returns:
             Extracted text content
         """
+        file_ext = os.path.splitext(docx_path)[1].lower()
+        
+        # Try python-docx first for .docx files
+        if file_ext == '.docx' and DOCX_AVAILABLE:
+            result = self._parse_with_python_docx(docx_path)
+            if result:
+                return result
+        
+        # For .doc files or if python-docx fails, try alternative methods
+        if file_ext == '.doc':
+            # Priority 1: Try antiword first (fast, stable, no Python dependencies)
+            if ANTIWORD_AVAILABLE:
+                result = self._parse_with_antiword(docx_path)
+                if result:
+                    logger.info(f"Successfully extracted {len(result)} chars from DOC via antiword")
+                    return result
+            
+            # Priority 2: Try textract (if available, but has pip 24.1+ conflicts)
+            if TEXTRACT_AVAILABLE:
+                result = self._parse_with_textract(docx_path)
+                if result:
+                    logger.info(f"Successfully extracted {len(result)} chars from DOC via textract")
+                    return result
+            
+            # Try LibreOffice conversion
+            result = self._parse_doc_with_libreoffice(docx_path)
+            if result:
+                logger.info(f"Successfully extracted {len(result)} chars from DOC via LibreOffice")
+                return result
+        
+        # Final fallback: try python-docx anyway (might work for some .doc files)
+        if DOCX_AVAILABLE:
+            result = self._parse_with_python_docx(docx_path)
+            if result:
+                return result
+        
+        logger.error(f"Unable to parse {file_ext} file: {docx_path}")
+        logger.info("Hint: Install 'antiword' for .doc support:")
+        logger.info("  For Ubuntu/Debian: sudo apt-get install antiword")
+        logger.info("  For CentOS/RHEL: Download from http://www.winfield.demon.nl/ and compile")
+        logger.info("  Or install LibreOffice: sudo yum install libreoffice-headless")
+        return None
+    
+    def _parse_with_python_docx(self, docx_path: str) -> Optional[str]:
+        """Parse using python-docx library"""
         if not DOCX_AVAILABLE:
-            logger.error("python-docx is not installed. Cannot parse DOCX/DOC files.")
             return None
         
         try:
@@ -193,15 +262,89 @@ class DocumentParser:
             extracted_text = '\n'.join(text_parts)
             
             if not extracted_text.strip():
-                logger.warning(f"No text extracted from DOCX: {docx_path}")
                 return None
             
-            logger.info(f"Successfully extracted {len(extracted_text)} chars from DOCX")
+            logger.info(f"Successfully extracted {len(extracted_text)} chars via python-docx")
             return extracted_text
             
         except Exception as e:
-            logger.error(f"Error parsing DOCX: {e}")
+            logger.debug(f"python-docx failed: {e}")
             return None
+    
+    def _parse_with_textract(self, doc_path: str) -> Optional[str]:
+        """Parse using textract library"""
+        if not TEXTRACT_AVAILABLE:
+            return None
+        
+        try:
+            text = textract.process(doc_path).decode('utf-8')
+            if text and text.strip():
+                return text.strip()
+        except Exception as e:
+            logger.debug(f"textract failed: {e}")
+        return None
+    
+    def _parse_with_antiword(self, doc_path: str) -> Optional[str]:
+        """Parse using antiword command-line tool"""
+        if not ANTIWORD_AVAILABLE:
+            return None
+        
+        try:
+            result = subprocess.run(
+                [ANTIWORD_PATH, doc_path],
+                capture_output=True,
+                text=True,
+                timeout=30
+            )
+            if result.returncode == 0 and result.stdout.strip():
+                return result.stdout.strip()
+        except Exception as e:
+            logger.debug(f"antiword failed: {e}")
+        return None
+    
+    def _parse_doc_with_libreoffice(self, doc_path: str) -> Optional[str]:
+        """Convert .doc to .txt using LibreOffice and read the result"""
+        try:
+            # Check if libreoffice is available
+            lo_check = subprocess.run(
+                ['which', 'libreoffice'],
+                capture_output=True
+            )
+            if lo_check.returncode != 0:
+                return None
+            
+            # Create temp directory for conversion
+            import tempfile
+            temp_dir = tempfile.mkdtemp(prefix="doc_convert_")
+            
+            try:
+                # Convert to txt
+                subprocess.run(
+                    ['libreoffice', '--headless', '--convert-to', 'txt:Text', 
+                     '--outdir', temp_dir, doc_path],
+                    capture_output=True,
+                    timeout=30,
+                    check=True
+                )
+                
+                # Read the converted file
+                doc_name = os.path.splitext(os.path.basename(doc_path))[0]
+                txt_path = os.path.join(temp_dir, f"{doc_name}.txt")
+                
+                if os.path.exists(txt_path):
+                    with open(txt_path, 'r', encoding='utf-8', errors='ignore') as f:
+                        text = f.read()
+                    if text.strip():
+                        return text.strip()
+            finally:
+                # Cleanup
+                import shutil
+                if os.path.exists(temp_dir):
+                    shutil.rmtree(temp_dir)
+                    
+        except Exception as e:
+            logger.debug(f"LibreOffice conversion failed: {e}")
+        return None
     
     def cleanup(self):
         """Clean up temporary files"""
