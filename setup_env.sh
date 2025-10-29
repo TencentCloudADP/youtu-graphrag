@@ -183,20 +183,80 @@ else
     echo "   ⚠️  python-docx: Not installed"
 fi
 
+# Check LibreOffice
+if command -v soffice &> /dev/null || command -v libreoffice &> /dev/null; then
+    echo "   ✅ LibreOffice: Available (best compatibility)"
+else
+    echo "   ⚠️  LibreOffice: Not installed (recommended for WPS/legacy docs)"
+fi
+
+# Check striprtf
+if python3 -c "import striprtf" 2>/dev/null; then
+    echo "   ✅ striprtf: Available (for RTF files)"
+else
+    echo "   ⚠️  striprtf: Not installed"
+fi
+
+# Check Apache Tika
+if python3 -c "from tika import parser" 2>/dev/null; then
+    echo "   ✅ Apache Tika: Available (universal parser, supports WPS/legacy formats)"
+else
+    echo "   ⚠️  Apache Tika: Not installed"
+fi
+
 echo ""
-echo "ℹ️  .doc File Parsing Strategy:"
-echo "   1. antiword - Fast and lightweight (recommended)"
-echo "   2. LibreOffice - Best compatibility (install separately if needed: sudo apt-get install libreoffice)"
-echo "   3. python-docx - Fallback for edge cases"
+echo "ℹ️  Document Parsing Strategy:"
+echo "   📄 .doc files:"
+echo "      1. antiword - Fast for standard Word docs"
+echo "      2. Apache Tika - Best for WPS/legacy formats (recommended)"
+echo "      3. LibreOffice - Fallback converter"
+echo "      4. textract - Additional fallback"
+echo "   📄 .docx files: python-docx"
+echo "   📄 .rtf files: striprtf → LibreOffice fallback"
+echo "   📄 .pdf files: MinerU (preferred) → PyMuPDF fallback"
 echo ""
-echo "💡 Note: textract Python package has dependency conflicts with pip 24.1+"
-echo "   Using system-level antiword instead (better performance & no conflicts)"
+echo "💡 Apache Tika can parse almost any document format including:"
+echo "   • WPS Office documents"
+echo "   • Legacy Microsoft Office formats"
+echo "   • PDF, RTF, HTML, XML, and 100+ more formats"
 echo ""
 
 # Download spaCy model
-echo "🧠 Downloading spaCy English model..."
-python -m spacy download en_core_web_lg # If using Chinese mode, the corresponding Chinese database should be used here.
+echo "🧠 Checking spaCy Chinese model..."
 
+# Check if Chinese model is already installed (preferred for this project)
+if python -c "import spacy; spacy.load('zh_core_web_lg')" 2>/dev/null; then
+    echo "✅ spaCy Chinese model (zh_core_web_lg) already installed"
+elif python -c "import spacy; spacy.load('en_core_web_lg')" 2>/dev/null; then
+    echo "✅ spaCy English model (en_core_web_lg) already installed"
+    echo "💡 For better Chinese text processing, consider installing zh_core_web_lg:"
+    echo "   python -m spacy download zh_core_web_lg"
+else
+    echo "📥 Downloading spaCy Chinese model (recommended for Chinese text)..."
+    echo "ℹ️  This may take a few minutes depending on network speed (~600MB)..."
+    
+    # Try to download Chinese spaCy model with error handling
+    if python -m spacy download zh_core_web_lg --quiet 2>/dev/null; then
+        echo "✅ Chinese spaCy model downloaded successfully"
+    else
+        echo "⚠️  Chinese model download failed, trying English model as fallback..."
+        
+        # Fallback to English model
+        if python -m spacy download en_core_web_lg --quiet 2>/dev/null; then
+            echo "✅ English spaCy model downloaded successfully"
+            echo "💡 Note: English model works but Chinese model (zh_core_web_lg) is better for Chinese text"
+        else
+            echo "⚠️  spaCy model download failed (network issue)"
+            echo "ℹ️  You can install it manually later with:"
+            echo "     python -m spacy download zh_core_web_lg  # For Chinese (recommended)"
+            echo "     python -m spacy download en_core_web_lg  # For English (fallback)"
+            echo ""
+            echo "⚠️  Continuing setup without spaCy model (non-fatal)..."
+        fi
+    fi
+fi
+
+echo ""
 # Download default HuggingFace models
 echo "🧠 Downloading default retriever model..."
 python3 -c "
