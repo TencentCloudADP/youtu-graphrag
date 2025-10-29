@@ -278,8 +278,8 @@ class DocumentParser:
                         file_type_hint = " (Legacy Microsoft Word format)"
                     else:
                         file_type_hint = " (OLE document)"
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"Failed to determine file type for {docx_path}: {e}")
         
         logger.error(f"Unable to parse {file_ext} file{file_type_hint}: {docx_path}")
         
