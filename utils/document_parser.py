@@ -403,7 +403,6 @@ class DocumentParser:
             logger.debug(f"LibreOffice found, attempting conversion for: {doc_path}")
             
             # Create temp directory for conversion
-            import tempfile
             import shutil
             temp_dir = tempfile.mkdtemp(prefix="doc_convert_")
             
