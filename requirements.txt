@@ -28,6 +28,8 @@ doclayout-yolo  # MinerU layout detection (optional but recommended)
 rapid_table
 python-docx==1.1.2
 pypdf==4.2.0
+striprtf==0.0.29  # RTF file support
+tika==3.1.0  # Apache Tika - universal document parser (supports WPS, legacy formats)
 
 # API & HTTP Clients
 openai==1.102.0
