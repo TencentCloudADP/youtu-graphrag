@@ -247,7 +247,7 @@ class DocumentParser:
                     logger.info(f"Successfully extracted {len(result)} chars from DOC via textract")
                     return result
             
-            # Priority 3: Try LibreOffice conversion (best for WPS/legacy formats)
+            # Priority 4: Try LibreOffice conversion (best for WPS/legacy formats)
             logger.debug(f"Trying LibreOffice for .doc file: {docx_path}")
             result = self._parse_doc_with_libreoffice(docx_path)
             if result:
