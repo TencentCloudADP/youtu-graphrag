@@ -8,6 +8,40 @@ pip install --upgrade pip
 echo "📦 Installing requirements..."
 pip install -r requirements.txt
 
+# Install Java for Apache Tika
+echo "☕ Setting up Java runtime for Apache Tika..."
+if ! command -v java &> /dev/null; then
+    echo "⚠️  Java not found, attempting to install..."
+    
+    if command -v apt-get &> /dev/null; then
+        echo "📦 Installing Java (Ubuntu/Debian)..."
+        if [ "$EUID" -eq 0 ]; then
+            apt-get update -qq
+            apt-get install -y -qq default-jre > /dev/null 2>&1
+        elif command -v sudo &> /dev/null; then
+            sudo apt-get update -qq
+            sudo apt-get install -y default-jre > /dev/null 2>&1
+        fi
+    elif command -v yum &> /dev/null; then
+        echo "📦 Installing Java (CentOS/RHEL)..."
+        if [ "$EUID" -eq 0 ]; then
+            yum install -y -q java-11-openjdk > /dev/null 2>&1
+        elif command -v sudo &> /dev/null; then
+            sudo yum install -y java-11-openjdk > /dev/null 2>&1
+        fi
+    fi
+    
+    if command -v java &> /dev/null; then
+        echo "✅ Java installed successfully: $(java -version 2>&1 | head -n 1)"
+    else
+        echo "⚠️  Failed to install Java. Apache Tika will not work."
+        echo "ℹ️  Please install Java manually: sudo apt-get install default-jre"
+    fi
+else
+    echo "✅ Java is already installed: $(java -version 2>&1 | head -n 1)"
+fi
+echo ""
+
 # Install .doc file support dependencies (optional but recommended)
 echo "📄 Setting up .doc file parsing support..."
 echo "ℹ️  Using system-level 'antiword' for .doc files (lightweight & stable)"
