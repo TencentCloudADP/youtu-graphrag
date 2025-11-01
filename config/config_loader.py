@@ -35,6 +35,7 @@ class ConstructionConfig:
     datasets_no_chunk: list = None
     chunk_size: int = 1000
     overlap: int = 200
+    stream: bool = False
     
     def __post_init__(self):
         if self.datasets_no_chunk is None:
