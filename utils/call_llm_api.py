@@ -4,7 +4,7 @@ import json
 import requests
 import re
 
-from openai import OpenAI
+from openai import OpenAI, AzureOpenAI
 from dotenv import load_dotenv
 
 from utils.logger import logger
@@ -18,7 +18,16 @@ class LLMCompletionCall:
         self.llm_api_key = os.getenv("LLM_API_KEY", "")
         if not self.llm_api_key:
             raise ValueError("LLM API key not provided")
-        self.client = OpenAI(base_url=self.llm_base_url, api_key = self.llm_api_key)
+        self.openai_provider = os.getenv("OPENAI_PROVIDER", "openai").lower()
+        if self.openai_provider == "azure":
+            self.api_version = os.getenv("API_VERSION", "2025-01-01-preview")
+            self.client = AzureOpenAI(
+                    azure_endpoint=self.llm_base_url,
+                    api_key=self.llm_api_key,
+                    api_version=self.api_version,
+                )
+        else:
+            self.client = OpenAI(base_url=self.llm_base_url, api_key = self.llm_api_key)
 
     def call_api(self, content: str) -> str:
         """

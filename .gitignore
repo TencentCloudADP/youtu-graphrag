@@ -8,6 +8,8 @@ wheels/
 .DS_Store
 .vscode
 .idea
+.codebuddy/
+
 
 .venv
 .env
@@ -23,3 +25,4 @@ output/
 
 retriever/faiss_cache_new/*
 docker/Dockerfile
+site/

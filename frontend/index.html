@@ -153,6 +153,33 @@
             text-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
         }
 
+        /* Language switch UI */
+        .lang-switch {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            display: flex;
+            gap: 8px;
+            z-index: 3;
+        }
+        .lang-btn {
+            padding: 6px 10px;
+            border-radius: 999px;
+            border: 1px solid rgba(255, 255, 255, 0.35);
+            background: rgba(0,0,0,0.2);
+            color: rgba(255,255,255,0.9);
+            font-size: 12px;
+            cursor: pointer;
+            backdrop-filter: blur(6px);
+        }
+        .lang-btn.active {
+            background: linear-gradient(135deg, rgba(107,115,255,0.85), rgba(155,181,255,0.85));
+            border-color: rgba(255,255,255,0.6);
+            color: #0b1430;
+            font-weight: 700;
+            box-shadow: 0 4px 12px rgba(107,115,255,0.35);
+        }
+
         .card {
             background: rgba(255, 255, 255, 0.2);
             backdrop-filter: blur(8px);
@@ -893,6 +920,43 @@
             text-shadow: 0 0 2px rgba(82,242,107,0.4);
         }
 
+        /* Brighter success style for QA completion */
+        .message.success-bright {
+            background: linear-gradient(135deg, rgba(0, 230, 118, 0.92), rgba(0, 200, 83, 0.92));
+            color: #061c06;
+            border: 2px solid rgba(0, 230, 118, 0.9);
+            box-shadow: 0 0 14px rgba(0, 230, 118, 0.6), 0 8px 22px rgba(0,0,0,0.35);
+            font-weight: 700;
+        }
+
+        /* Completion badge shown next to Ask button */
+        .completion-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            border-radius: 999px;
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 0.3px;
+            background: linear-gradient(135deg, rgba(0, 230, 118, 0.95), rgba(0, 200, 83, 0.95));
+            color: #082108;
+            border: 1px solid rgba(0, 230, 118, 0.95);
+            box-shadow: 0 6px 18px rgba(0, 230, 118, 0.35);
+            margin: 0;
+        }
+
+        /* QA action row (Ask button + badge) */
+        .qa-action-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        /* Left align progress messages while keeping spinner centered */
+        #qaMessages { text-align: left; }
+
         .answer-content {
             background: linear-gradient(120deg, rgba(20,28,42,0.94) 0%, rgba(34,46,66,0.9) 100%);
             border-left: 6px solid #6b73ff;
@@ -960,25 +1024,29 @@
     <div class="container">
         <!-- Header -->
         <div class="header">
+            <div class="lang-switch">
+                <button class="lang-btn" id="langEnBtn" onclick="setLanguage('en')">EN</button>
+                <button class="lang-btn" id="langZhBtn" onclick="setLanguage('zh')">中文</button>
+            </div>
             <div class="logo-container">
                 <img src="/assets/logo.png" alt="Youtu-GraphRAG Logo" class="logo-image">
                 <div class="logo">Youtu-GraphRAG</div>
             </div>
-            <div class="subtitle">✨ Vertically Unified Agents for Graph Retrieval-Augmented Complex Reasoning ✨</div>
+            <div class="subtitle" id="subtitleText">✨ Vertically Unified Agents for Graph Retrieval-Augmented Complex Reasoning ✨</div>
         </div>
 
         <!-- Navigation Tabs -->
         <div class="tabs">
-            <div class="tab active" onclick="switchTab('dashboard')">📊 Dashboard</div>
-            <div class="tab" onclick="switchTab('upload')">📤 Data Upload</div>
-            <div class="tab" onclick="switchTab('graph')">🕸️ Graph Visualization</div>
-            <div class="tab" onclick="switchTab('qa')">🤖 Q&A Interface</div>
+            <div class="tab active" id="tabDashboard" onclick="switchTab('dashboard')">📊 Dashboard</div>
+            <div class="tab" id="tabUpload" onclick="switchTab('upload')">📤 Data Upload</div>
+            <div class="tab" id="tabGraph" onclick="switchTab('graph')">🕸️ Graph Visualization</div>
+            <div class="tab" id="tabQA" onclick="switchTab('qa')">🤖 Q&A Interface</div>
         </div>
 
         <!-- Dashboard Tab -->
         <div id="dashboard" class="tab-content active">
             <div class="card">
-                <h2>System Overview</h2>
+                <h2 id="systemOverviewTitle">System Overview</h2>
                 <div class="grid">
                     <div class="stat-card">
                         <div class="stat-number" id="stat-datasets">0</div>
@@ -1002,12 +1070,12 @@
             </div>
 
             <div class="card">
-                <h2>Quick Actions</h2>
+                <h2 id="quickActionsTitle">Quick Actions</h2>
                 <div class="quick-actions">
-                    <button class="btn" onclick="switchTab('upload')">📤 Upload Documents</button>
-                    <button class="btn" onclick="switchTab('graph')">🕸️ View Graph</button>
-                    <button class="btn" onclick="switchTab('qa')">🤖 Query</button>
-                    <button class="btn btn-secondary" onclick="refreshData()">🔄 Refresh</button>
+                    <button class="btn" id="qaUploadDocsBtn" onclick="switchTab('upload')">📤 Upload Documents</button>
+                    <button class="btn" id="qaViewGraphBtn" onclick="switchTab('graph')">🕸️ View Graph</button>
+                    <button class="btn" id="qaQueryBtn" onclick="switchTab('qa')">🤖 Query</button>
+                    <button class="btn btn-secondary" id="qaRefreshBtn" onclick="refreshData()">🔄 Refresh</button>
                 </div>
             </div>
         </div>
@@ -1015,16 +1083,16 @@
         <!-- Upload Tab -->
         <div id="upload" class="tab-content">
             <div class="card">
-                <h2>Upload Documents</h2>
+                                <h2 id="uploadDocumentsTitle">Upload Documents</h2>
                 <div class="upload-area" id="uploadArea">
                     <div class="upload-icon">📁</div>
-                    <h3>Drag & Drop Files Here</h3>
-                    <p>or click to browse files</p>
-                    <p style="font-size: 12px; color: rgba(255,255,255,0.6); margin-top: 12px;">
-                        Currently supports: .json
+                                        <h3 id="uploadDragTitle">Drag & Drop Files Here</h3>
+                                        <p id="uploadDragDesc">or click to browse files</p>
+                    <p id="uploadSupports" style="font-size: 12px; color: rgba(255,255,255,0.6); margin-top: 12px;">
+                        Currently supports: .txt, .md, .json, .pdf, .docx, .doc
                     </p>
                     <div style="margin-top: 20px; padding: 15px; background: rgba(255,255,255,0.1); border-radius: 10px; text-align: left; font-size: 11px; color: rgba(255,255,255,0.8);">
-                        <div style="font-weight: 600; margin-bottom: 8px;">📄 Sample Format (.json):</div>
+                                                <div id="uploadSampleHeader" style="font-weight: 600; margin-bottom: 8px;">📄 Sample Format (.json):</div>
                         <pre style="margin: 0; font-family: 'JetBrains Mono', 'Monaco', 'Menlo', 'Ubuntu Mono', monospace; background: rgba(0,0,0,0.3); padding: 8px; border-radius: 5px; overflow-x: auto;">
   [
     {
@@ -1038,14 +1106,14 @@
   ]
 </pre>
                     </div>
-                    <input type="file" id="fileInput" multiple accept=".txt,.json,.zip,.md" style="display: none;">
+                    <input type="file" id="fileInput" multiple accept=".txt,.json,.md,.pdf,.docx,.doc" style="display: none;">
                 </div>
                 
                 <div id="fileList" class="file-list hidden"></div>
                 
                 <div style="margin-top: 20px;">
-                    <button class="btn" id="uploadBtn" disabled onclick="uploadFiles()">Upload Files</button>
-                    <button class="btn btn-secondary" onclick="clearFiles()">Clear</button>
+                                        <button class="btn" id="uploadBtn" disabled onclick="uploadFiles()">Upload Files</button>
+                                        <button class="btn btn-secondary" id="clearUploadBtn" onclick="clearFiles()">Clear</button>
                 </div>
                 
                 <div id="uploadProgress" class="hidden">
@@ -1057,7 +1125,7 @@
             </div>
 
             <div class="card">
-                <h2>Available Datasets</h2>
+                <h2 id="availableDatasetsTitle">Available Datasets</h2>
                 <div id="datasetsList"></div>
             </div>
         </div>
@@ -1065,9 +1133,9 @@
         <!-- Graph Tab -->
         <div id="graph" class="tab-content">
             <div class="card">
-                <h2>Knowledge Tree Visualization</h2>
+                <h2 id="knowledgeTreeTitle">Knowledge Tree Visualization</h2>
                 <div class="input-group">
-                    <label>Dataset:</label>
+                    <label id="labelGraphDataset">Dataset:</label>
                     <select class="select" id="graphDataset" onchange="loadGraphData()">
                         <option value="">Select a dataset...</option>
                     </select>
@@ -1079,27 +1147,31 @@
         <!-- Q&A Tab -->
         <div id="qa" class="tab-content">
             <div class="card">
-                <h2>Query Panel</h2>
+                <h2 id="queryPanelTitle">Query Panel</h2>
                 <div class="input-group">
-                    <label>Dataset:</label>
+                    <label id="labelQADataset">Dataset:</label>
                     <select class="select" id="qaDataset">
                         <option value="">Select a dataset...</option>
                     </select>
                 </div>
                 <div class="input-group">
-                    <label>Query:</label>
+                    <label id="labelQuery">Query:</label>
                     <!-- <textarea class="textarea" id="questionInput" placeholder="Demo Queston: When was the person who Messi's goals in Copa del Rey compared to get signed by Barcelona?"></textarea> -->
                     <textarea class="textarea" id="questionInput" placeholder="Enter your question here...">When was the person who Messi's goals in Copa del Rey compared to get signed by Barcelona?</textarea>
                 </div>
-                <button class="btn" onclick="askQuestion()" id="askBtn">Ask Question</button>
+                <div class="qa-action-row">
+                    <button class="btn" onclick="askQuestion()" id="askBtn">Ask Question</button>
+                    <div id="qaCompletionBadge" class="completion-badge" style="display:none;">✔️ Completed</div>
+                </div>
                 
                 <div id="qaLoading" class="loading">
                     <div class="spinner"></div>
-                    <div>Processing your question...</div>
+                    <div id="qaProcessingText">Processing your question...</div>
+                    <div id="qaMessages" style="margin-top: 10px;"></div>
                 </div>
                 
                 <div id="answerSection" class="hidden">
-                    <h3>Answer:</h3>
+                    <h3 id="answerTitle">Answer:</h3>
                     <div class="answer-content" id="answerContent"></div>
                     
                     <!-- Retrieval Details Container -->
@@ -1124,6 +1196,144 @@
         // let queryChart = null;
         let questionCount = 0;
 
+        // i18n configuration: default to English; switch to Chinese when lang starts with 'zh'
+    let currentLang = (document.documentElement.lang || 'en').toLowerCase().startsWith('zh') ? 'zh' : 'en';
+        const i18n = {
+            en: {
+                processing: 'Processing your question...',
+                pleaseSelectAndEnter: 'Please select a dataset and enter a question',
+                subtitle: '✨ Vertically Unified Agents for Graph Retrieval-Augmented Complex Reasoning ✨',
+                tabs: { dashboard: '📊 Dashboard', upload: '📤 Data Upload', graph: '🕸️ Graph Visualization', qa: '🤖 Q&A Interface' },
+                systemOverview: 'System Overview',
+                quickActions: 'Quick Actions',
+                qaUploadDocsBtn: '📤 Upload Documents',
+                qaViewGraphBtn: '🕸️ View Graph',
+                qaQueryBtn: '🤖 Query',
+                qaRefreshBtn: '🔄 Refresh',
+                uploadDocuments: 'Upload Documents',
+                uploadDragTitle: 'Drag & Drop Files Here',
+                uploadDragDesc: 'or click to browse files',
+                uploadSupports: 'Currently supports: .txt, .md, .json, .pdf, .docx, .doc',
+                uploadSampleHeader: '📄 Sample Format (.json):',
+                uploadBtn: 'Upload Files',
+                clearUploadBtn: 'Clear',
+                availableDatasets: 'Available Datasets',
+                knowledgeTreeTitle: 'Knowledge Tree Visualization',
+                labelDataset: 'Dataset:',
+                selectDatasetPlaceholder: 'Select a dataset...',
+                queryPanelTitle: 'Query Panel',
+                labelQuery: 'Query:',
+                askBtn: 'Ask Question',
+                answerTitle: 'Answer:',
+                decomposeStart: 'Starting to decompose your question into sub-questions...',
+                decomposeSummary: (t) => `Decomposition complete. Total sub-questions: ${t}`,
+                subQuestion: (i,t,q) => `Sub-question ${i}/${t}: ${q}`,
+                ircotStart: 'Starting IRCoT reasoning...',
+                ircotStep: (s,max,thought) => `IRCoT Step ${s}/${max}: ${thought}`,
+                retrievalProgress: (found,cand) => `Retrieval progress: ${found} relevant nodes from ${cand} candidates.`,
+                answerStart: 'Synthesizing the final answer...',
+                qaCompleted: 'QA process completed!',
+                completedBadge: '✔️ Completed',
+                datasetDocCountLabel: (count) => count === 1 ? ' (1 document)' : ` (${count} documents)`,
+                uploadSuccessMessage: (name, count) => {
+                    const friendlyName = (name || '').replace(/_/g, ' ').trim() || name || 'dataset';
+                    if (typeof count === 'number' && count > 0) {
+                        return `Dataset "${friendlyName}" uploaded successfully${count === 1 ? ' (1 document)' : ` (${count} documents)`}!`;
+                    }
+                    return `Dataset "${friendlyName}" uploaded successfully!`;
+                }
+            },
+            zh: {
+                processing: '正在处理你的问题…',
+                pleaseSelectAndEnter: '请选择数据集并输入问题',
+                subtitle: '✨ 面向图检索增强复杂推理的统一式智能体 ✨',
+                tabs: { dashboard: '📊 仪表盘', upload: '📤 数据上传', graph: '🕸️ 图谱可视化', qa: '🤖 问答接口' },
+                systemOverview: '系统概览',
+                quickActions: '快捷操作',
+                qaUploadDocsBtn: '📤 上传文档',
+                qaViewGraphBtn: '🕸️ 查看图谱',
+                qaQueryBtn: '🤖 发起查询',
+                qaRefreshBtn: '🔄 刷新',
+                uploadDocuments: '上传文档',
+                uploadDragTitle: '拖拽文件到这里',
+                uploadDragDesc: '或点击选择文件',
+                uploadSupports: '当前支持：.txt、.md、.json、.pdf、.docx、.doc',
+                uploadSampleHeader: '📄 示例格式（.json）：',
+                uploadBtn: '开始上传',
+                clearUploadBtn: '清空',
+                availableDatasets: '可用数据集',
+                knowledgeTreeTitle: '知识树可视化',
+                labelDataset: '数据集：',
+                selectDatasetPlaceholder: '请选择数据集…',
+                queryPanelTitle: '查询面板',
+                labelQuery: '查询：',
+                askBtn: '发起提问',
+                answerTitle: '答案：',
+                decomposeStart: '开始将你的问题分解为子问题…',
+                decomposeSummary: (t) => `分解完成。子问题总数：${t}`,
+                subQuestion: (i,t,q) => `子问题 ${i}/${t}：${q}`,
+                ircotStart: '开始 IRCoT 推理…',
+                ircotStep: (s,max,thought) => `IRCoT 步骤 ${s}/${max}：${thought}`,
+                retrievalProgress: (found,cand) => `检索进度：在 ${cand} 个候选中找到 ${found} 个相关节点。`,
+                answerStart: '正在综合生成最终答案…',
+                qaCompleted: '问答流程完成！',
+                completedBadge: '✔️ 已完成',
+                datasetDocCountLabel: (count) => count === 1 ? '（1篇文档）' : `（共${count}篇文档）`,
+                uploadSuccessMessage: (name, count) => {
+                    const friendlyName = (name || '').replace(/_/g, ' ').trim() || name || '数据集';
+                    if (typeof count === 'number' && count > 0) {
+                        return `数据集“${friendlyName}”上传成功${count === 1 ? '（1篇文档）' : `（共${count}篇文档）`}！`;
+                    }
+                    return `数据集“${friendlyName}”上传成功！`;
+                }
+            }
+        };
+
+        function refreshUITexts() {
+            const t = i18n[currentLang];
+            // Header & tabs
+            const subtitle = document.getElementById('subtitleText'); if (subtitle) subtitle.textContent = t.subtitle;
+            const tabDashboard = document.getElementById('tabDashboard'); if (tabDashboard) tabDashboard.textContent = t.tabs.dashboard;
+            const tabUpload = document.getElementById('tabUpload'); if (tabUpload) tabUpload.textContent = t.tabs.upload;
+            const tabGraph = document.getElementById('tabGraph'); if (tabGraph) tabGraph.textContent = t.tabs.graph;
+            const tabQA = document.getElementById('tabQA'); if (tabQA) tabQA.textContent = t.tabs.qa;
+            // Dashboard
+            const sysTitle = document.getElementById('systemOverviewTitle'); if (sysTitle) sysTitle.textContent = t.systemOverview;
+            const qaTitle = document.getElementById('quickActionsTitle'); if (qaTitle) qaTitle.textContent = t.quickActions;
+            const qaUploadDocsBtn = document.getElementById('qaUploadDocsBtn'); if (qaUploadDocsBtn) qaUploadDocsBtn.textContent = t.qaUploadDocsBtn;
+            const qaViewGraphBtn = document.getElementById('qaViewGraphBtn'); if (qaViewGraphBtn) qaViewGraphBtn.textContent = t.qaViewGraphBtn;
+            const qaQueryBtn = document.getElementById('qaQueryBtn'); if (qaQueryBtn) qaQueryBtn.textContent = t.qaQueryBtn;
+            const qaRefreshBtn = document.getElementById('qaRefreshBtn'); if (qaRefreshBtn) qaRefreshBtn.textContent = t.qaRefreshBtn;
+            // Upload
+            const uploadTitle = document.getElementById('uploadDocumentsTitle'); if (uploadTitle) uploadTitle.textContent = t.uploadDocuments;
+            const uploadDragTitle = document.getElementById('uploadDragTitle'); if (uploadDragTitle) uploadDragTitle.textContent = t.uploadDragTitle;
+            const uploadDragDesc = document.getElementById('uploadDragDesc'); if (uploadDragDesc) uploadDragDesc.textContent = t.uploadDragDesc;
+            const uploadSupports = document.getElementById('uploadSupports'); if (uploadSupports) uploadSupports.textContent = t.uploadSupports;
+            const uploadSampleHeader = document.getElementById('uploadSampleHeader'); if (uploadSampleHeader) uploadSampleHeader.textContent = t.uploadSampleHeader;
+            const uploadBtn = document.getElementById('uploadBtn'); if (uploadBtn) uploadBtn.textContent = t.uploadBtn;
+            const clearUploadBtn = document.getElementById('clearUploadBtn'); if (clearUploadBtn) clearUploadBtn.textContent = t.clearUploadBtn;
+            const datasetsTitle = document.getElementById('availableDatasetsTitle'); if (datasetsTitle) datasetsTitle.textContent = t.availableDatasets;
+            // Graph
+            const knowledgeTreeTitle = document.getElementById('knowledgeTreeTitle'); if (knowledgeTreeTitle) knowledgeTreeTitle.textContent = t.knowledgeTreeTitle;
+            const labelGraphDataset = document.getElementById('labelGraphDataset'); if (labelGraphDataset) labelGraphDataset.textContent = t.labelDataset;
+            const graphSelect = document.getElementById('graphDataset'); if (graphSelect) graphSelect.options[0].text = t.selectDatasetPlaceholder;
+            // QA
+            const queryPanelTitle = document.getElementById('queryPanelTitle'); if (queryPanelTitle) queryPanelTitle.textContent = t.queryPanelTitle;
+            const labelQADataset = document.getElementById('labelQADataset'); if (labelQADataset) labelQADataset.textContent = t.labelDataset;
+            const qaSelect = document.getElementById('qaDataset'); if (qaSelect) qaSelect.options[0].text = t.selectDatasetPlaceholder;
+            const labelQuery = document.getElementById('labelQuery'); if (labelQuery) labelQuery.textContent = t.labelQuery;
+            const askBtn = document.getElementById('askBtn'); if (askBtn) askBtn.textContent = t.askBtn;
+            const answerTitle = document.getElementById('answerTitle'); if (answerTitle) answerTitle.textContent = t.answerTitle;
+            // Processing text & badge (if visible)
+            const procText = document.getElementById('qaProcessingText'); if (procText) procText.textContent = t.processing;
+            const badge = document.getElementById('qaCompletionBadge'); if (badge && badge.style.display !== 'none') badge.textContent = t.completedBadge;
+
+            // Refresh dataset renderings to reflect language-specific labels
+            displayDatasets();
+            loadDatasetOptions('graphDataset');
+            loadDatasetOptions('qaDataset');
+        }
+
         // API base URL
         const API_BASE = '';
 
@@ -1136,6 +1346,8 @@
         function initializeApp() {
             refreshData();
             console.log('Youtu-GraphRAG initialized');
+            // Apply initial language to UI
+            refreshUITexts();
         }
 
         function setupEventListeners() {
@@ -1155,6 +1367,25 @@
                     askQuestion();
                 }
             });
+
+            // initialize language buttons state
+            updateLangButtons();
+        }
+
+        function setLanguage(lang) {
+            if (lang !== 'en' && lang !== 'zh') return;
+            currentLang = lang;
+            updateLangButtons();
+            // Update visible texts
+            refreshUITexts();
+        }
+
+        function updateLangButtons() {
+            const enBtn = document.getElementById('langEnBtn');
+            const zhBtn = document.getElementById('langZhBtn');
+            if (!enBtn || !zhBtn) return;
+            enBtn.classList.toggle('active', currentLang === 'en');
+            zhBtn.classList.toggle('active', currentLang === 'zh');
         }
 
         function switchTab(tabName) {
@@ -1242,6 +1473,20 @@
             return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
         }
 
+        function formatDatasetDisplayName(dataset) {
+            if (!dataset) return '';
+            const rawName = (dataset.display_label || dataset.name || '').toString();
+            const cleanedName = rawName.replace(/_/g, ' ').trim() || (dataset.name || '');
+            const docCount = typeof dataset.docs_count === 'number' ? dataset.docs_count : null;
+            if (docCount && docCount > 0) {
+                const langConfig = i18n[currentLang] || i18n.en;
+                const suffixFn = langConfig?.datasetDocCountLabel;
+                const suffix = suffixFn ? suffixFn(docCount) : ` (${docCount} documents)`;
+                return `${cleanedName}${suffix}`;
+            }
+            return cleanedName;
+        }
+
         async function uploadFiles() {
             if (selectedFiles.length === 0) return;
 
@@ -1274,7 +1519,19 @@
                 progressFill.style.width = '100%';
                 progressText.textContent = 'Upload completed!';
 
-                showMessage('Files uploaded successfully!', 'success');
+                const uploadData = response?.data || {};
+                const datasetName = uploadData.dataset_name;
+                const filesCount = uploadData.files_count;
+                const langConfig = i18n[currentLang] || i18n.en;
+                if (langConfig?.uploadSuccessMessage) {
+                    showMessage(langConfig.uploadSuccessMessage(datasetName, filesCount), 'success');
+                } else {
+                    let successMessage = datasetName ? `Dataset "${datasetName}" uploaded successfully!` : 'Files uploaded successfully!';
+                    if (typeof filesCount === 'number' && filesCount > 0) {
+                        successMessage += filesCount === 1 ? ' (1 document)' : ` (${filesCount} documents)`;
+                    }
+                    showMessage(successMessage, 'success');
+                }
                 clearFiles();
                 refreshData();
 
@@ -1314,6 +1571,7 @@
 
         function displayDatasets() {
             const container = document.getElementById('datasetsList');
+            if (!container) return;
             if (datasets.length === 0) {
                 container.innerHTML = '<p style="color: rgba(255,255,255,0.6);">No datasets available. Upload some files to get started.</p>';
                 return;
@@ -1322,7 +1580,7 @@
             container.innerHTML = datasets.map(dataset => `
                 <div class="file-item">
                     <div>
-                        <strong>${dataset.name}</strong>
+                        <strong>${formatDatasetDisplayName(dataset)}</strong>
                         <span style="color: rgba(255,255,255,0.6);"> (${dataset.type})</span>
                         ${dataset.type !== 'demo' ? `<span style="margin-left:8px; font-size:12px; color:${dataset.has_custom_schema ? '#228B22' : 'rgba(255,255,255,0.6)'}; font-weight:600;">Schema: ${dataset.has_custom_schema ? 'custom' : 'default'}</span>` : ''}
                     </div>
@@ -1580,10 +1838,19 @@
 
         function loadDatasetOptions(selectId) {
             const select = document.getElementById(selectId);
+            if (!select) return;
+
             const readyDatasets = datasets.filter(d => d.status === 'ready');
-            
-            select.innerHTML = '<option value="">Select a dataset...</option>' +
-                readyDatasets.map(d => `<option value="${d.name}">${d.name}</option>`).join('');
+            const currentValue = select.value;
+            const langConfig = i18n[currentLang] || i18n.en;
+            const placeholder = langConfig?.selectDatasetPlaceholder || 'Select a dataset...';
+
+            select.innerHTML = `<option value="">${placeholder}</option>` +
+                readyDatasets.map(d => `<option value="${d.name}">${formatDatasetDisplayName(d)}</option>`).join('');
+
+            if (readyDatasets.some(d => d.name === currentValue)) {
+                select.value = currentValue;
+            }
         }
 
         async function loadGraphData() {
@@ -1671,28 +1938,83 @@
             graphChart.setOption(option);
         }
 
-        async function askQuestion() {
+    async function askQuestion() {
             const datasetName = document.getElementById('qaDataset').value;
             const question = document.getElementById('questionInput').value.trim();
 
             if (!datasetName || !question) {
-                showMessage('Please select a dataset and enter a question', 'error');
+                showMessage(i18n[currentLang].pleaseSelectAndEnter, 'error');
                 return;
             }
+
+            // Clear previous QA inline messages when starting a new question
+            const qaMsgs = document.getElementById('qaMessages');
+            if (qaMsgs) qaMsgs.innerHTML = '';
 
             const loading = document.getElementById('qaLoading');
             const answerSection = document.getElementById('answerSection');
             const askBtn = document.getElementById('askBtn');
+            const qaBadge = document.getElementById('qaCompletionBadge');
 
             loading.classList.add('show');
+            const procText = document.getElementById('qaProcessingText');
+            if (procText) procText.textContent = i18n[currentLang].processing;
             answerSection.classList.add('hidden');
+            document.getElementById('answerContent').textContent = '';
             askBtn.disabled = true;
+            if (qaBadge) qaBadge.style.display = 'none';
 
+            let ws = null;
+            let qaCompleted = false;
             try {
+                // Open WebSocket for live QA updates
+                const wsProto = window.location.protocol === 'https:' ? 'wss' : 'ws';
+                ws = new WebSocket(`${wsProto}://${window.location.host}/ws/web_client`);
+                let wsOpen = false;
+                ws.onopen = () => { wsOpen = true; };
+                ws.onmessage = (event) => {
+                    try {
+                        const data = JSON.parse(event.data);
+                        if (data.type === 'qa_update') {
+                            if (data.stage === 'sub_question') {
+                                const q = (data.question || '').toString();
+                                if (currentLang === 'zh') {
+                                    const msg = `【子问题 ${data.index}/${data.total}】${q}｜三元组：${data.triples_count || 0}｜片段：${data.chunks_count || 0}`;
+                                    showMessage(msg, 'info');
+                                    if (Array.isArray(data.triples_preview) && data.triples_preview.length) {
+                                        showMessage('预览：' + data.triples_preview.slice(0,3).join(' | '), 'info');
+                                    }
+                                } else {
+                                    const msg = `[Sub ${data.index}/${data.total}] ${q} | Triples: ${data.triples_count || 0} | Chunks: ${data.chunks_count || 0}`;
+                                    showMessage(msg, 'info');
+                                    if (Array.isArray(data.triples_preview) && data.triples_preview.length) {
+                                        showMessage('Preview: ' + data.triples_preview.slice(0,3).join(' | '), 'info');
+                                    }
+                                }
+                            } else if (data.stage === 'ircot') {
+                                const thought = (data.thought_preview || '').toString().slice(0,140) + '...';
+                                const msg = currentLang === 'zh' ? `IRCoT 步骤 ${data.step}/${data.max_steps}：${thought}` : `IRCoT Step ${data.step}/${data.max_steps}: ${thought}`;
+                                showMessage(msg, 'info');
+                            }
+                        } else if (data.type === 'qa_complete') {
+                            qaCompleted = true;
+                            showMessage(i18n[currentLang].qaCompleted, 'success-bright', 12000);
+                            const badge = document.getElementById('qaCompletionBadge');
+                            if (badge) { badge.style.display = 'inline-flex'; badge.textContent = i18n[currentLang].completedBadge; }
+                            // Do not close here; HTTP response will render the final details
+                            setTimeout(() => { try { if (ws && ws.readyState === WebSocket.OPEN) ws.close(); } catch(_){} }, 1000);
+                        }
+                    } catch (e) {
+                        // non-JSON message
+                    }
+                };
+                ws.onerror = () => {};
+
                 const response = await axios.post(`${API_BASE}/api/ask-question`, {
                     question: question,
-                    dataset_name: datasetName,
-                    client_id: 'web_client'
+                    dataset_name: datasetName
+                }, {
+                    params: { client_id: 'web_client' }
                 });
 
                 const result = response.data;
@@ -1704,8 +2026,15 @@
                 console.error('Question failed:', error);
                 showMessage('Failed to process question: ' + (error.response?.data?.detail || error.message), 'error');
             } finally {
-                loading.classList.remove('show');
+                // Delay hiding the loader briefly when completed so the bright message is visible
+                const hide = () => loading.classList.remove('show');
+                if (qaCompleted) {
+                    setTimeout(hide, 1500);
+                } else {
+                    hide();
+                }
                 askBtn.disabled = false;
+                try { if (ws && ws.readyState === WebSocket.OPEN) ws.close(); } catch(_){}
             }
         }
 
@@ -2165,8 +2494,10 @@
             queryChart.setOption(option);
         }
 
-        function showMessage(text, type = 'info') {
-            const messages = document.getElementById('messages');
+        function showMessage(text, type = 'info', durationMs = 5000) {
+            // Prefer QA-local container when present, fallback to global messages at bottom
+            const local = document.getElementById('qaMessages');
+            const messages = local || document.getElementById('messages');
             const message = document.createElement('div');
             message.className = `message ${type}`;
             message.textContent = text;
@@ -2175,7 +2506,7 @@
             
             setTimeout(() => {
                 message.remove();
-            }, 5000);
+            }, durationMs);
         }
 
         // Initialize on load

@@ -14,6 +14,7 @@
 - <a href="#web-interface-quick-experience">💻 Web Interface Quick Experience</a>
 - <a href="#command-line-usage">🛠️ Command Line Usage</a>
 - <a href="#advanced-configuration">⚙️ Advanced Configuration</a>
+- <a href="#troubleshooting">🔧 Troubleshooting</a>
 
 ---
 
@@ -40,6 +41,8 @@ docker run -d -p 8000:8000 youtu_graphrag:v1
 # 5. Visit http://localhost:8000
 curl -v http://localhost:8000
 ```
+
+> **💡 Note:** If you encounter `Segmentation fault: 11` errors when building large-scale knowledge graphs, please refer to the <a href="#troubleshooting">Troubleshooting section</a> below.
 
 ### 3-Minute Experience Process
 
@@ -109,6 +112,10 @@ conda activate YouTuGraphRAG
 # You can also use the bash ./setup_env.sh to do the same thing.
 chmod +x setup_env.sh
 ./setup_env.sh
+
+# 5. Start the web server (for web interface)
+chmod +x start.sh
+./start.sh
 ```
 
 ### Basic Usage
@@ -228,6 +235,99 @@ python kt_rag.py --override '{
   "retrieval": {"top_k_filter": 10}
 }' --datasets demo
 ```
+
+---
+
+<a id="troubleshooting"></a>
+## 🔧 Troubleshooting
+
+### ❌ FAISS Segmentation Fault When Building Indices
+
+**Problem Description:**
+
+When processing large-scale datasets (e.g., 7000+ nodes), the process may crash with a segmentation fault during the FAISS index building phase.
+
+**Typical Error Logs:**
+```log
+[2025-10-20 17:28:55] INFO enhanced_kt_retriever:2199 - Indexed 6000/7107 nodes
+[2025-10-20 17:28:55] INFO enhanced_kt_retriever:2199 - Indexed 7000/7107 nodes
+[2025-10-20 17:28:55] INFO enhanced_kt_retriever:2206 - Time taken to build node text index: 0.00603795051574707 seconds
+[2025-10-20 17:28:55] INFO enhanced_kt_retriever:2228 - Saved node text index with 6494 words to retriever/faiss_cache_new/test/node_text_index.pkl (size: 356795 bytes)
+[2025-10-20 17:28:55] INFO enhanced_kt_retriever:2351 - Precomputing chunk embeddings for direct chunk retrieval...
+[2025-10-20 17:28:55] INFO enhanced_kt_retriever:2574 - Loaded chunk embedding cache with 1014 entries from retriever/faiss_cache_new/test/chunk_embedding_cache.pt (file size: 1857728 bytes)
+[2025-10-20 17:28:55] INFO enhanced_kt_retriever:2353 - Successfully loaded chunk embeddings from disk cache
+[2025-10-20 17:28:55] INFO faiss_filter:856 - Building FAISS indices and embeddings...
+./start.sh: line 27: 38579 Segmentation fault: 11  python backend.py
+👋 Youtu-GraphRAG server stopped.
+/opt/homebrew/Cellar/python@3.10/3.10.17/Frameworks/Python.framework/Versions/3.10/lib/python3.10/multiprocessing/resource_tracker.py:224: UserWarning: resource_tracker: There appear to be 1 leaked semaphore objects to clean up at shutdown
+```
+
+**Key Indicators:**
+- Process crashes immediately after logging `Building FAISS indices and embeddings...`
+- Error message shows `Segmentation fault: 11`
+- Typically occurs when processing thousands of nodes
+
+**Root Cause:**
+
+This is caused by a conflict between OpenMP multi-threading and the FAISS library, leading to memory access violations. For detailed technical analysis, see: [Related Technical Blog](https://blog.gitcode.com/b2031d6f6292a3c43ce76451badb9766.html)
+
+---
+
+**Solutions:**
+
+> ⚠️ **Important:** Only apply these fixes if you encounter the `Segmentation fault: 11` error described above. No configuration is needed for normal operation.
+
+**Method 1: Temporary Setting (Quick Test)**
+```bash
+# For web server (using start.sh)
+OMP_NUM_THREADS=1 ./start.sh
+
+# For command line usage
+OMP_NUM_THREADS=1 python main.py --datasets your_dataset
+
+# Or export first
+export OMP_NUM_THREADS=1
+./start.sh  # or python main.py --datasets your_dataset
+```
+
+**Method 2: Persistent Setting (For Frequent Large Dataset Processing)**
+```bash
+# Add to ~/.bashrc or ~/.zshrc
+echo 'export OMP_NUM_THREADS=1' >> ~/.bashrc  # or ~/.zshrc
+source ~/.bashrc  # or source ~/.zshrc
+
+# Then use normally
+./start.sh
+# or
+python main.py --datasets your_dataset
+```
+
+**Method 3: Modify Startup Script (Recommended for Web Service)**
+
+Edit the `start.sh` file and add the environment variable before line 27 (`python backend.py`):
+
+```bash
+# Modify lines 22-28 of start.sh to:
+echo "🚀 Starting backend server..."
+echo "🛑 Press Ctrl+C to stop the server"
+echo "=========================================="
+
+# Fix FAISS segmentation fault for large datasets
+export OMP_NUM_THREADS=1
+
+python backend.py
+```
+
+Then start normally:
+```bash
+./start.sh
+```
+
+**Verification:**
+
+After applying the fix, rebuild your knowledge graph. The FAISS index construction should complete successfully without crashes.
+
+**Related Issue:** [#123](https://github.com/TencentCloudADP/youtu-graphrag/issues/123)
 
 ---
 

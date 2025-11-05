@@ -46,6 +46,7 @@ class TreeCommConfig:
     embedding_model: str = "all-MiniLM-L6-v2"
     struct_weight: float = 0.3
     enable_fast_mode: bool = True
+    max_total_communities: int = 100
 
 @dataclass
 class FAISSConfig:
@@ -229,7 +230,7 @@ class ConfigManager:
         if self.triggers.mode not in valid_modes:
             raise ValueError(f"Invalid mode: {self.triggers.mode}. Must be one of {valid_modes}")
         
-        if self.construction.mode not in ["agent", "basic"]:
+        if self.construction.mode not in valid_modes:
             raise ValueError(f"Invalid construction mode: {self.construction.mode}")
         
         # Validate numerical parameters

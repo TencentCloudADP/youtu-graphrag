@@ -2,15 +2,16 @@
 
 # <img src="assets/logo.svg" alt="Youtu-agent Logo" height="26px"> Youtu-GraphRAG: <br>Vertically Unified Agents for Graph Retrieval-Augmented Complex Reasoning
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Paper](https://img.shields.io/badge/Paper-Latest-blue.svg)](https://arxiv.org/abs/2508.19855)
 [![WeChat Community](https://img.shields.io/badge/Community-WeChat-32CD32)](assets/wechat_qr.png)
 [![Discord Community](https://img.shields.io/badge/Community-Discord-8A2BE2)](https://discord.gg/QjqhkHQVVM)
+<a href=https://deepwiki.com/TencentCloudADP/youtu-graphrag><img src=https://img.shields.io/badge/DeepWiki-Tencent-blue.svg></a>
 [![GitHub stars](https://img.shields.io/github/stars/TencentCloudADP/youtu-graphrag?style=social)](https://github.com/TencentCloudADP/youtu-graphrag)
 
 *🚀 Revolutionary framework moving Pareto Frontier with 33.6% lower token cost and 16.62% higher accuracy over SOTA baselines*
 
-[🔖 中文版](README-CN.md) • [⭐ Contributions](#contributions) • [📊 Benchmarks](https://huggingface.co/datasets/Youtu-Graph/AnonyRAG) • [🚀 Getting Started](#quickstart)
+[🔖 中文版](README-CN.md) • [🔖 日本語](README-JA.md) • [⭐ Contributions](#contributions) • [📊 Benchmarks](https://huggingface.co/datasets/Youtu-Graph/AnonyRAG) • [🚀 Getting Started](#quickstart)
 
 </div>
 
@@ -35,13 +36,20 @@ A sketched overview of our proposed framework Youtu-GraphRAG.
 </div>
 
 ## 📲 Interactive interface
-
+This [video](https://youtu.be/fVUsgClHqwc) walks through the main features of the project.
 <div align="center">
-
-[//]: # (<img src="assets/dashboard_demo.png" alt="Dashboard" width="32%"/>)
 <img src="assets/graph_demo.png" alt="Graph Construction" width="45.9%"/>
 <img src="assets/retrieval_demo.png" alt="Retrieval" width="49.4%"/>
 </div>
+
+<!-- <div align="center"> -->
+
+
+
+<!-- </div> -->
+
+
+
 
 <a id="contributions"></a>
 ## 🚀 Contributions and Novelty
@@ -213,7 +221,7 @@ curl -v http://localhost:8000
 ```
 
 ### 📖 Full Usage Guide
-For advanced config and usage：[**🚀 FullGuide**](FULLGUIDE.md)
+For advanced config and usage：[**🚀 Full Guide (English)**](FULLGUIDE.md) | [**🚀 完整指南（中文）**](FULLGUIDE-CN.md)
 
 ### ⭐ **Start using Youtu-GraphRAG now and experience the intelligent question answering!** 🚀
 
@@ -255,8 +263,3 @@ We welcome contributions from the community! Here's how you can help:
       url={https://arxiv.org/abs/2508.19855}, 
 }
 ```
-
----
-## Star History
-
-[![Star History Chart](https://api.star-history.com/svg?repos=TencentCloudADP/youtu-graphrag&type=Date)](https://www.star-history.com/#TencentCloudADP/youtu-graphrag&Date)

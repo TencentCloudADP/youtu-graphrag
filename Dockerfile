@@ -6,9 +6,14 @@ ENV PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1
 
-# 3. Install system dependencies
+# 3. Install system dependencies (including Java for Apache Tika)
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends git && \
+    apt-get install -y --no-install-recommends \
+        git \
+        default-jre \
+        antiword \
+        libreoffice-writer \
+        libreoffice-calc && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
