@@ -15,6 +15,9 @@
 
 </div>
 
+## 📢 News
+* **[2026-01]** ✨ Our [**Youtu-GraphRAG**](https://arxiv.org/abs/2508.19855) has been accepted by **ICLR 2026**!
+
 ## 🎯 Brief Introduction
 **Youtu-GraphRAG** is a vertically unified agentic paradigm that jointly connects the entire framework as an intricate integration based on graph schema. We allow seamless domain transfer with minimal intervention on the graph schema, providing insights of the next evolutionary GraphRAG paradigm for real-world applications with remarkable adaptability.
 
