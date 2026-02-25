@@ -41,7 +41,7 @@ class KTRetriever:
         if config is None and get_config is not None:
             try:
                 config = get_config()
-            except:
+            except Exception:
                 config = None
         
         self.config = config
@@ -454,7 +454,7 @@ class KTRetriever:
                             torch_serialization = importlib.import_module('torch.serialization')
                             torch_serialization.add_safe_globals(["numpy.core.multiarray._reconstruct"])
                             cpu_cache = torch.load(cache_path, map_location='cpu')
-                        except:
+                        except Exception:
                             raise e
                     else:
                         raise e
@@ -2503,7 +2503,7 @@ class KTRetriever:
                             torch_serialization = importlib.import_module('torch.serialization')
                             torch_serialization.add_safe_globals(["numpy.core.multiarray._reconstruct"])
                             cpu_cache = torch.load(cache_path, map_location='cpu')
-                        except:
+                        except Exception:
                             raise e
                     else:
                         raise e

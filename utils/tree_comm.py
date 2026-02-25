@@ -36,7 +36,7 @@ class FastTreeComm:
         if config is None and get_config is not None:
             try:
                 config = get_config()
-            except:
+            except Exception:
                 config = None
         self.config = config
         self.graph = graph

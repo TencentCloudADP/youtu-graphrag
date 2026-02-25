@@ -1014,7 +1014,7 @@ def prepare_retrieved_graph_visualization(triples: List[str]) -> Dict:
                         "target": str(target),
                         "name": str(relation)
                     })
-        except:
+        except Exception:
             continue
     
     return {

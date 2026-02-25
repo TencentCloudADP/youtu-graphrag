@@ -11,7 +11,7 @@ class GraphQ:
         if config is None and get_config is not None:
             try:
                 self.config = get_config()
-            except:
+            except Exception:
                 self.config = None
         else:
             self.config = config
