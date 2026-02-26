@@ -15,6 +15,10 @@
 
 </div>
 
+## 📢 最新动态
+*   **[2026年02月]** 🎉 **GraphRAG 企业版** 已在 **[腾讯云智能体开发平台](https://cloud.tencent.com/product/adp)** 上线。
+*   **[2026年01月]** 🎉 **[Youtu-GraphRAG](https://arxiv.org/abs/2508.19855)** 论文已被 **ICLR 2026** 接收！
+
 ## 🎯 项目简介
 **Youtu-GraphRAG**是一个基于图 Schema 实现垂直统一的图增强推理范式，将 GraphRAG 框架精巧地集成为一个以智能体为核心的有机整体。我们实现了通过在图 Schema 上的最小化人为干预下进行跨领域的无缝迁移，为业界应用提供了泛化、准确、可用的下一代 GraphRAG 范式。
 
