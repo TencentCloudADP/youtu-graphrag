@@ -717,7 +717,11 @@ async def ask_question(request: QuestionRequest, client_id: str = "default"):
         def _dedup(items):
             return list({x: None for x in items}.keys())
         def _merge_chunk_contents(ids, mapping):
-            return [mapping.get(i, f"[Missing content for chunk {i}]") for i in ids]
+            chunks = []
+            for idx, i in enumerate(ids, 1):
+                content = mapping.get(i, f"[Missing content for chunk {i}]")
+                chunks.append(f"[Chunk {idx}] {content}")
+            return chunks
 
         # Step 1: decomposition
         await send_progress_update(client_id, "retrieval", 50, "Decomposing question...")
@@ -824,7 +828,7 @@ async def ask_question(request: QuestionRequest, client_id: str = "default"):
         initial_triples = _dedup(list(all_triples))
         initial_chunk_ids = list(set(all_chunk_ids))
         initial_chunk_contents = _merge_chunk_contents(initial_chunk_ids, all_chunk_contents)
-        context_initial = "=== Triples ===\n" + "\n".join(initial_triples[:20]) + "\n=== Chunks ===\n" + "\n".join(initial_chunk_contents[:10])
+        context_initial = "=== Triples ===\n" + "\n".join(initial_triples[:20]) + "\n=== Chunks ===\n" + "\n---\n".join(initial_chunk_contents[:10])
         init_prompt = kt_retriever.generate_prompt(question, context_initial)
         try:
             # Offload LLM call to thread executor
@@ -838,7 +842,7 @@ async def ask_question(request: QuestionRequest, client_id: str = "default"):
             loop_triples = _dedup(list(all_triples))
             loop_chunk_ids = list(set(all_chunk_ids))
             loop_chunk_contents = _merge_chunk_contents(loop_chunk_ids, all_chunk_contents)
-            loop_ctx = "=== Triples ===\n" + "\n".join(loop_triples[:20]) + "\n=== Chunks ===\n" + "\n".join(loop_chunk_contents[:10])
+            loop_ctx = "=== Triples ===\n" + "\n".join(loop_triples[:20]) + "\n=== Chunks ===\n" + "\n---\n".join(loop_chunk_contents[:10])
             loop_prompt = f"""
 You are an expert knowledge assistant using iterative retrieval with chain-of-thought reasoning.
 Current Question: {question}

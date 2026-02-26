@@ -40,12 +40,71 @@ class KTBuilder:
             return dict()
 
 
+    def _split_text_with_overlap(
+        self,
+        text: str,
+        chunk_size: int = 1000,
+        overlap: int = 200,
+        min_tail_tokens: int = 100,
+    ) -> List[str]:
+        """Split text into chunks with overlap using token count."""
+        try:
+            encoding = tiktoken.get_encoding("cl100k_base")
+        except Exception:
+            encoding = tiktoken.get_encoding("gpt2")
+            
+        tokens = encoding.encode(text)
+        if len(tokens) <= chunk_size:
+            return [text]
+
+        windows = []
+        start = 0
+        step = chunk_size - overlap
+        if step <= 0:
+            step = chunk_size  # Prevent infinite loop if overlap >= chunk_size
+
+        while start < len(tokens):
+            end = min(start + chunk_size, len(tokens))
+            windows.append([start, end])
+            start += step
+
+        if len(windows) >= 2:
+            idx = 0
+            while idx < len(windows):
+                cur_len = windows[idx][1] - windows[idx][0]
+                if cur_len < min_tail_tokens:
+                    if idx > 0:
+                        windows[idx - 1][1] = windows[idx][1]
+                        windows.pop(idx)
+                        continue
+                    elif idx + 1 < len(windows):
+                        windows[idx + 1][0] = windows[idx][0]                                     
+                        windows.pop(idx)
+                        continue
+                idx += 1
+
+        chunks = []
+        for s, e in windows:
+            decoded_chunk = encoding.decode(tokens[s:e])
+            if (e - s < 5) or (len(decoded_chunk.strip()) < 5):
+                continue
+            chunks.append(decoded_chunk)
+        return chunks
+
     def chunk_text(self, text) -> Tuple[List[str], Dict[str, str]]:
         if self.dataset_name in self.datasets_no_chunk:
             chunks = [f"{text.get('title', '')} {text.get('text', '')}".strip() 
                      if isinstance(text, dict) else str(text)]
         else:
-            chunks = [str(text)]
+            # Use configured chunk size and overlap
+            raw_text = str(text)
+            if isinstance(text, dict):
+                raw_text = f"{text.get('title', '')} {text.get('text', '')}".strip()
+            
+            chunk_size = getattr(self.config.construction, 'chunk_size', 1000)
+            overlap = getattr(self.config.construction, 'overlap', 200)
+            min_tail_tokens = getattr(self.config.construction, 'min_tail_tokens', 100)
+            chunks = self._split_text_with_overlap(raw_text, chunk_size, overlap, min_tail_tokens)
 
         chunk2id = {}
         for chunk in chunks:
@@ -87,27 +146,13 @@ class KTBuilder:
         os.makedirs("output/chunks", exist_ok=True)
         chunk_file = f"output/chunks/{self.dataset_name}.txt"
         
-        existing_data = {}
-        if os.path.exists(chunk_file):
-            try:
-                with open(chunk_file, "r", encoding="utf-8") as f:
-                    for line in f:
-                        line = line.strip()
-                        if line and "\t" in line:
-                            # Parse line format: "id: {id} \tChunk: {chunk text}"
-                            parts = line.split("\t", 1)
-                            if len(parts) == 2 and parts[0].startswith("id: ") and parts[1].startswith("Chunk: "):
-                                chunk_id = parts[0][4:] 
-                                chunk_text = parts[1][7:] 
-                                existing_data[chunk_id] = chunk_text
-            except Exception as e:
-                logger.warning(f"Failed to parse existing chunks from {chunk_file}: {type(e).__name__}: {e}")
-        
-        all_data = {**existing_data, **self.all_chunks}
+        # When reconstructing, we want a fresh start, not appending to old data
+        all_data = self.all_chunks
         
         with open(chunk_file, "w", encoding="utf-8") as f:
             for chunk_id, chunk_text in all_data.items():
-                f.write(f"id: {chunk_id}\tChunk: {chunk_text}\n")
+                escaped = chunk_text.replace('\n', '\\n').replace('\t', '\\t')
+                f.write(f"id: {chunk_id}\tChunk: {escaped}\n")
         
         logger.info(f"Chunk data saved to {chunk_file} ({len(all_data)} chunks)")
     
@@ -505,7 +550,7 @@ class KTBuilder:
                         future.result()
                         processed_count += 1
                         
-                        if processed_count % 10 == 0 or processed_count == total_docs:
+                        if processed_count % 5 == 0 or processed_count == total_docs:
                             elapsed_time = time.time() - start_construct
                             avg_time_per_doc = elapsed_time / processed_count if processed_count > 0 else 0
                             remaining_docs = total_docs - processed_count

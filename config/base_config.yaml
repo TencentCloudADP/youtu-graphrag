@@ -1,5 +1,5 @@
 construction:
-  chunk_size: 1000
+  chunk_size: 5000
   datasets_no_chunk:
   - hotpot
   - 2wiki
