@@ -16,6 +16,7 @@
 </div>
 
 ## 📢 News
+* **[2026-02]** 🎉 Our Enterprise Edition of GraphRAG has been launched on [**Tencent Cloud's ADP Platform**](https://cloud.tencent.com/product/adp).
 * **[2026-01]** 🎉 Our [**Youtu-GraphRAG**](https://arxiv.org/abs/2508.19855) has been accepted by **ICLR 2026**!
 
 ## 🎯 Brief Introduction
