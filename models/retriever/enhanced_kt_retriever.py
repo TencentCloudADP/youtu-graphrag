@@ -1,3 +1,4 @@
+import json
 import os
 import pickle
 import threading
@@ -397,7 +398,16 @@ class KTRetriever:
             return False
 
     def _load_node_embedding_cache(self):
+        """Check if node embedding cache exists and matches the current model"""
         """Load node embedding cache from disk"""
+        embedding_model_info = f"{self.cache_dir}/{self.dataset}/embedding_model_info.json"
+        if os.path.exists(embedding_model_info):
+            with open(embedding_model_info, 'r') as f:
+                embedding_model_info = json.load(f)
+            if embedding_model_info['model_name'] != self.config.embeddings.model_name:
+                return False
+        else:
+            return False
         cache_path = f"{self.cache_dir}/{self.dataset}/node_embedding_cache.pt"
         cache_path_npz = cache_path.replace('.pt', '.npz')
         
