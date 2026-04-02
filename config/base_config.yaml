@@ -61,7 +61,7 @@ embeddings:
   model_name: all-MiniLM-L6-v2
 
 nlp:
-  spacy_model: en_core_web_lg
+  spacy_model: zh_core_web_lg
 
 
 output:

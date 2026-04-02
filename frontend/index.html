@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Youtu-GraphRAG - Enterprise-level solutions for complex reasoning</title>
+    <title>GraphRAG Studio - Enterprise-level solutions for complex reasoning</title>
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
@@ -110,24 +110,6 @@
             margin-bottom: 15px;
             position: relative;
             z-index: 2;
-        }
-
-        .logo-image {
-            height: 120px;
-            width: auto;
-            max-width: 180px;
-            /* border-radius: 15px;
-            border: 3px solid rgba(255, 255, 255, 0.4); */
-            /* box-shadow: 
-                0 4px 20px rgba(0, 0, 0, 0.2),
-                0 0 30px rgba(255, 255, 255, 0.1); */
-            animation: logoFloat 4s ease-in-out infinite;
-            object-fit: contain;
-        }
-
-        @keyframes logoFloat {
-            0%, 100% { transform: translateY(0px) rotate(0deg); }
-            50% { transform: translateY(-8px) rotate(2deg); }
         }
 
         .logo {
@@ -1029,10 +1011,9 @@
                 <button class="lang-btn" id="langZhBtn" onclick="setLanguage('zh')">中文</button>
             </div>
             <div class="logo-container">
-                <img src="/assets/logo.png" alt="Youtu-GraphRAG Logo" class="logo-image">
-                <div class="logo">Youtu-GraphRAG</div>
+                <div class="logo">GraphRAG Studio</div>
             </div>
-            <div class="subtitle" id="subtitleText">✨ Vertically Unified Agents for Graph Retrieval-Augmented Complex Reasoning ✨</div>
+            <div class="subtitle" id="subtitleText">✨ Graph Retrieval-Augmented Complex Reasoning Workspace ✨</div>
         </div>
 
         <!-- Navigation Tabs -->
@@ -1345,7 +1326,7 @@
 
         function initializeApp() {
             refreshData();
-            console.log('Youtu-GraphRAG initialized');
+            console.log('GraphRAG Studio initialized');
             // Apply initial language to UI
             refreshUITexts();
         }
@@ -2024,7 +2005,7 @@
 
             } catch (error) {
                 console.error('Question failed:', error);
-                showMessage('Failed to process question: ' + (error.response?.data?.detail || error.message), 'error');
+                showMessage('Failed to process question: ' + (error.response?.data?.detail || error.message), 'error', 10000, false);
             } finally {
                 // Delay hiding the loader briefly when completed so the bright message is visible
                 const hide = () => loading.classList.remove('show');
@@ -2494,9 +2475,9 @@
             queryChart.setOption(option);
         }
 
-        function showMessage(text, type = 'info', durationMs = 5000) {
+        function showMessage(text, type = 'info', durationMs = 5000, preferLocal = true) {
             // Prefer QA-local container when present, fallback to global messages at bottom
-            const local = document.getElementById('qaMessages');
+            const local = preferLocal ? document.getElementById('qaMessages') : null;
             const messages = local || document.getElementById('messages');
             const message = document.createElement('div');
             message.className = `message ${type}`;
