@@ -197,12 +197,18 @@ python main.py --override '{
 # LLM related configuration
 python main.py --override '{
   "llm": {
-    "model": "gpt-3.5-turbo",
+    "model": "deepseek-chat",
+    "base_url": "https://api.deepseek.com",
     "temperature": 0.7,
     "max_tokens": 1500
   }
 }' --datasets demo
 ```
+
+The `llm` block in `config/base_config.yaml` provides runtime defaults. Values in
+`.env` such as `LLM_MODEL`, `LLM_BASE_URL`, `LLM_API_KEY`, `LLM_TEMPERATURE`, and
+`LLM_MAX_TOKENS` override the YAML settings, which is the recommended place for
+secrets like API keys.
 
 </details>
 

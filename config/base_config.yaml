@@ -63,6 +63,13 @@ embeddings:
 nlp:
   spacy_model: en_core_web_lg
 
+llm:
+  model: deepseek-chat
+  base_url: https://api.deepseek.com
+  provider: openai
+  api_version: 2025-01-01-preview
+  temperature: 0.3
+  max_tokens:
 
 output:
   base_dir: output

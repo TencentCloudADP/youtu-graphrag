@@ -96,6 +96,17 @@ class NLPConfig:
     """NLP configuration"""
     spacy_model: str = 'en_core_web_lg' 
 
+@dataclass
+class LLMConfig:
+    """LLM API configuration"""
+    model: str = "deepseek-chat"
+    base_url: str = "https://api.deepseek.com"
+    api_key: str = ""
+    provider: str = "openai"
+    api_version: str = "2025-01-01-preview"
+    temperature: float = 0.3
+    max_tokens: Optional[int] = None
+
 
 @dataclass
 class OutputConfig:
@@ -148,6 +159,7 @@ class ConfigManager:
         self.retrieval: Optional[RetrievalConfig] = None
         self.embeddings: Optional[EmbeddingsConfig] = None
         self.nlp: Optional[NLPConfig] = None
+        self.llm: Optional[LLMConfig] = None
         self.prompts: Dict[str, Any] = {}
         self.output: Optional[OutputConfig] = None
         self.performance: Optional[PerformanceConfig] = None
@@ -206,6 +218,9 @@ class ConfigManager:
         
         nlp = self.config_data.get("nlp", {})
         self.nlp = NLPConfig(**nlp)
+
+        llm_data = self.config_data.get("llm", {})
+        self.llm = LLMConfig(**llm_data)
         
         self.prompts = self.config_data.get("prompts", {})
         
@@ -239,6 +254,12 @@ class ConfigManager:
         
         if self.tree_comm.struct_weight < 0 or self.tree_comm.struct_weight > 1:
             raise ValueError("struct_weight must be between 0 and 1")
+
+        if self.llm.temperature < 0 or self.llm.temperature > 2:
+            raise ValueError("llm.temperature must be between 0 and 2")
+
+        if self.llm.max_tokens is not None and self.llm.max_tokens <= 0:
+            raise ValueError("llm.max_tokens must be positive")
     
     def get_dataset_config(self, dataset_name: str) -> DatasetConfig:
         """Get configuration for a specific dataset."""
@@ -282,13 +303,13 @@ class ConfigManager:
     def to_dict(self) -> Dict[str, Any]:
         """Convert configuration to dictionary format."""
         return {
-            "api": asdict(self.api),
             "datasets": {name: asdict(config) for name, config in self.datasets.items()},
             "triggers": asdict(self.triggers),
             "construction": asdict(self.construction),
             "tree_comm": asdict(self.tree_comm),
             "retrieval": asdict(self.retrieval),
             "embeddings": asdict(self.embeddings),
+            "llm": asdict(self.llm),
             "prompts": self.prompts,
             "output": asdict(self.output),
             "performance": asdict(self.performance),
