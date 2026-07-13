@@ -778,9 +778,6 @@ class KTRetriever:
             
             if node_schema_type in target_types:
                 filtered_nodes.append(node_id)
-            # Also include nodes without schema_type for backward compatibility
-            elif not node_schema_type and node_data.get('label') == 'entity':
-                filtered_nodes.append(node_id)
 
         return filtered_nodes
 
