@@ -752,9 +752,7 @@ class KTRetriever:
         for u, v, data in self.graph.edges(data=True):
             if u in node_set or v in node_set:
                 relation = data.get('relation', '')
-                u_name = self._get_node_name(u)
-                v_name = self._get_node_name(v)
-                one_hop_triples.append((u_name, relation, v_name))
+                one_hop_triples.append((u, relation, v))
         
         return one_hop_triples[:self.top_k]
 
